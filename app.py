@@ -373,6 +373,30 @@ def get_orders():
 # Entrypoint
 # -----------------------
 init_db()
+@app.route("/api/debug-paths")
+def debug_paths():
+    base = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        "/data",
+        "/data/uploads",
+        os.path.join(base, "data"),
+        os.path.join(base, "data", "uploads"),
+        os.path.join(base, "uploads"),
+        app.config.get("UPLOAD_DIR")
+    ]
+    result = {}
+    for p in set(candidates):
+        if p and os.path.exists(p):
+            try:
+                result[p] = os.listdir(p)
+            except Exception as e:
+                result[p] = str(e)
+        else:
+            result[p] = "NOT_FOUND"
+    return jsonify({
+        "current_UPLOAD_DIR": app.config.get("UPLOAD_DIR"),
+        "scanned_paths": result
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
