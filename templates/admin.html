@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>پنل مدیریت محصولات</title>
+  
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+  <h2>پنل مدیریت فروشگاه</h2>
+  <a href="/admin/logout" style="background: #ef4444; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500;">خروج از حساب</a>
+</div>
+
+
+  <style>
+    body { font-family: sans-serif; background: #f8fafc; padding: 30px; margin: 0; }
+    .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+    }
+    button.submit-btn {
+      background: #0f172a; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold;
+    }
+    button.submit-btn:hover { background: #1e293b; }
+    #status { margin-top: 15px; font-weight: bold; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>افزودن محصول جدید</h2>
+
+  <!-- نکته کلیدی: enctype="multipart/form-data" حتما باید باشد -->
+  <form id="productForm" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>نام محصول:</label>
+      <input type="text" name="name" required />
+    </div>
+
+    <div class="form-group">
+      <label>دسته‌بندی:</label>
+      <select name="category" required>
+        {% for c in categories %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>قیمت (تومان / $):</label>
+      <input type="number" name="price" required />
+    </div>
+
+    <div class="form-group">
+      <label>آپلود عکس محصول:</label>
+      <input type="file" name="image_file" accept="image/*" />
+    </div>
+
+    <div class="form-group">
+      <label>یا لینک عکس (اختیاری):</label>
+      <input type="text" name="image_url" placeholder="https://example.com/photo.jpg" />
+    </div>
+
+    <div class="form-group">
+      <label>توضیحات:</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+
+    <button type="submit" id="submitBtn" class="submit-btn">ثبت محصول</button>
+    <div id="status"></div>
+  </form>
+
+  <!-- لیست محصولات -->
+  <hr style="margin: 40px 0; border: none; border-top: 1px solid #e2e8f0;" />
+  <h2>محصولات موجود</h2>
+  <div style="overflow-x:auto; margin-top: 15px;">
+    <table id="productsTable" style="width:100%; border-collapse: collapse; text-align: right; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <thead>
+        <tr style="background: #f1f5f9; color: #475569; border-bottom: 2px solid #e2e8f0;">
+          <th style="padding: 12px;">تصویر</th>
+          <th style="padding: 12px;">نام</th>
+          <th style="padding: 12px;">دسته</th>
+          <th style="padding: 12px;">قیمت</th>
+          <th style="padding: 12px; text-align: center;">عملیات</th>
+        </tr>
+      </thead>
+      <tbody id="adminProductsList"></tbody>
+    </table>
+  </div>
+
+    <!-- بخش جدید سفارش‌ها -->
+    <hr style="margin: 40px 0; border: none; border-top: 1px solid #e2e8f0;" />
+    <h2>سفارش‌های دریافتی</h2>
+    <div id="ordersContainer" style="margin-top: 15px;">
+        در حال بارگذاری سفارش‌ها...
+    </div>
+    </div>
+
+<script src="../static/admin.js"></script>
+</body>
+</html>

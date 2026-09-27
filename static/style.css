@@ -1,0 +1,1052 @@
+/* --- متغیرهای رنگ‌بندی APACHE --- */
+:root {
+  --apache-black: #111111;
+  --apache-dark: #1a1a1a;
+  --apache-orange: #e65f2b;
+  --apache-orange-hover: #cf4e1d;
+  --apache-orange-light: #fff5f0;
+  --bg-page: #f9f9fb;
+  --bg-surface: #ffffff;
+  --text-main: #18181b;
+  --text-muted: #71717a;
+  --border-light: #e4e4e7;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-full: 9999px;
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 12px 30px rgba(230, 95, 43, 0.12);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+}
+/* جلوگیری از بیرون زدن و تمام‌صفحه شدن تصاویر */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  direction: rtl;
+  text-align: right;
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* --- Announcement Bar --- */
+.announcement-bar {
+  background: var(--apache-black);
+  color: #f4f4f5;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.badge-code {
+  color: var(--apache-orange);
+  background: rgba(230, 95, 43, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* --- Topbar & Header --- */
+.topbar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-soft);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* --- Hamburger Button --- */
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 38px;
+  height: 38px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.hamburger-btn:hover {
+  background: #f4f4f5;
+}
+
+.hamburger-btn .bar {
+  display: block;
+  width: 22px;
+  height: 2.5px;
+  background-color: var(--apache-black);
+  border-radius: 2px;
+  transition: var(--transition);
+}
+
+.hamburger-btn:hover .bar {
+  background-color: var(--apache-orange);
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-text {
+  text-decoration: none;
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--apache-black);
+}
+
+.brand-dot {
+  color: var(--apache-orange);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-link {
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.admin-link:hover {
+  color: var(--apache-black);
+  background: #f4f4f5;
+}
+
+.cart-btn {
+  background: var(--apache-black);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+}
+
+.cart-btn:hover {
+  background: var(--apache-orange);
+  transform: scale(1.02);
+}
+
+.cart-badge {
+  background: var(--apache-orange);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.cart-btn:hover .cart-badge {
+  background: var(--apache-black);
+}
+
+/* --- Slide-out Category Drawer --- */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.category-drawer {
+  position: fixed;
+  top: 0;
+  right: -320px; /* شروع از سمت راست به دلیل RTL */
+  width: 300px;
+  height: 100vh;
+  background: var(--bg-surface);
+  z-index: 1001;
+  box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.category-drawer.open {
+  right: 0;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.close-drawer-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.close-drawer-btn:hover {
+  color: var(--apache-orange);
+}
+
+.drawer-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--apache-black);
+  cursor: pointer;
+  text-align: right;
+  transition: var(--transition);
+}
+
+.drawer-item:hover {
+  background: var(--apache-orange-light);
+  color: var(--apache-orange);
+}
+
+.drawer-item.active {
+  background: var(--apache-orange-light);
+  color: var(--apache-orange);
+  border-color: rgba(230, 95, 43, 0.3);
+  font-weight: 800;
+}
+
+.drawer-icon {
+  font-size: 1.2rem;
+}
+
+.drawer-footer {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.drawer-admin-btn {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  background: #f4f4f5;
+  color: var(--apache-black);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.88rem;
+  transition: var(--transition);
+}
+
+.drawer-admin-btn:hover {
+  background: var(--apache-black);
+  color: #ffffff;
+}
+
+/* --- Hero Section --- */
+.hero {
+  background: radial-gradient(circle at top left, #2c211d, var(--apache-black) 75%);
+  color: #ffffff;
+  padding: 55px 0 45px 0;
+  text-align: center;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(230, 95, 43, 0.2);
+  color: var(--apache-orange);
+  border: 1px solid var(--apache-orange);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  margin-bottom: 14px;
+}
+
+.hero h2 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.hero p {
+  font-size: 1rem;
+  color: #a1a1aa;
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+/* --- Features Strip --- */
+.features-bar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  padding: 16px 0;
+}
+
+.features-grid {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.f-icon {
+  font-size: 1.5rem;
+}
+
+.feature-item strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--apache-black);
+}
+
+.feature-item p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* --- Store Content & Tabs --- */
+.store-container {
+  margin-top: 36px;
+  margin-bottom: 60px;
+  flex-grow: 1;
+}
+
+.tabs-wrapper {
+  margin-bottom: 30px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+  min-width: max-content;
+}
+
+.tab {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  color: var(--text-muted);
+  padding: 9px 20px;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.tab:hover {
+  border-color: var(--apache-orange);
+  color: var(--apache-orange);
+}
+
+.tab.active {
+  background: var(--apache-orange);
+  border-color: var(--apache-orange);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(230, 95, 43, 0.3);
+}
+
+/* --- Section Head --- */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-head h3 {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.head-line {
+  flex-grow: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+/* --- Products Grid & Cards --- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.product-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--apache-orange);
+  box-shadow: var(--shadow-hover);
+}
+
+.product-image {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
+  background: #f4f4f5;
+  transition: var(--transition);
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.03);
+}
+
+.product-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.product-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--apache-black);
+  margin-bottom: 6px;
+}
+
+.product-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #f4f4f5;
+}
+
+.product-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--apache-black);
+}
+
+.btn-add-cart {
+  background: var(--apache-orange-light);
+  color: var(--apache-orange);
+  border: 1px solid rgba(230, 95, 43, 0.2);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-add-cart:hover {
+  background: var(--apache-orange);
+  color: #ffffff;
+}
+
+/* Empty State */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+/* --- Cart Modal --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--bg-surface);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  border-radius: var(--radius-md);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlide 0.2s ease-out;
+}
+
+@keyframes modalSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: var(--apache-black);
+}
+
+.cart-items {
+  padding: 20px;
+  overflow-y: auto;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.cart-summary {
+  padding: 20px;
+  border-top: 1px solid var(--border-light);
+  background: #fafafa;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+
+.btn-checkout {
+  width: 100%;
+  background: var(--apache-orange);
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-checkout:hover {
+  background: var(--apache-orange-hover);
+}
+
+/* Checkout Form */
+.checkout-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--apache-black);
+}
+
+.checkout-form input, 
+.checkout-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  outline: none;
+  background: #ffffff;
+  transition: var(--transition);
+}
+
+.checkout-form input:focus, 
+.checkout-form textarea:focus {
+  border-color: var(--apache-orange);
+  box-shadow: 0 0 0 3px rgba(230, 95, 43, 0.15);
+}
+
+.checkout-status {
+  font-size: 0.88rem;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* --- Footer --- */
+.footer {
+  background: var(--apache-black);
+  color: #ffffff;
+  border-top: 1px solid #27272a;
+  padding: 30px 0 20px 0;
+  margin-top: auto;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.footer-brand h3 {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.footer-brand h3 span {
+  color: var(--apache-orange);
+}
+
+.footer-brand p {
+  font-size: 0.82rem;
+  color: #a1a1aa;
+}
+
+.copyright {
+  font-size: 0.78rem;
+  color: #71717a;
+  margin-top: 10px;
+}
+
+
+
+/* اگر در کارت محصول کلاس product-image دارید یا هر عکسی داخل کارت است */
+.product-card img,
+.product-image {
+  width: 100%;
+  height: 220px;         /* ارتفاع ثابت برای یکدست شدن کارت‌ها */
+  object-fit: cover;     /* عکس دفرمه یا کشیده نمی‌شود و داخل کادر جا می‌گیرد */
+  border-radius: 8px 8px 0 0;
+}
+
+
+/* --- استایل پیشرفته و جذاب دکمه btn-buy --- */
+.btn-buy {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #e65f2b 0%, #b84315 100%);
+  color: #ffffff;
+  border: none;
+  outline: none;
+  padding: 10px 20px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(230, 95, 43, 0.35);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* افکت شاین نوری هنگام هاور */
+.btn-buy::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  transition: all 0.5s ease;
+}
+
+.btn-buy:hover::before {
+  left: 200%;
+}
+
+/* انیمیشن و تغییر رنگ در هاور */
+.btn-buy:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #f06a35 0%, #c94b19 100%);
+  box-shadow: 0 8px 22px rgba(230, 95, 43, 0.45);
+}
+
+/* افکت کلیک (فشرده شدن) */
+.btn-buy:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: 0 2px 8px rgba(230, 95, 43, 0.3);
+}
+
+/* انیمیشن آیکون سبد خرید */
+.btn-buy .buy-icon {
+  stroke: #ffffff;
+  transition: transform 0.25s ease;
+}
+
+.btn-buy:hover .buy-icon {
+  transform: scale(1.15) rotate(-6deg);
+}
+
+/* در صورتی که دکمه باید عرض کامل کارت را بگیرد (اختیاری) */
+.product-card .btn-buy {
+  width: 100%;
+}
+
+
+
+/* ========================================================
+   📱 RESPONSIVE STYLES (MOBILE & TABLET OPTIMIZATIONS)
+   ======================================================== */
+
+/* --- تنظیمات تبلت و موبایل (کمتر از 768px) --- */
+@media (max-width: 768px) {
+
+  /* 1. هدر و اعلان بالای صفحه */
+  .announcement-bar {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    line-height: 1.4;
+  }
+
+  .header-content {
+    padding: 8px 14px;
+  }
+
+  .brand-text {
+    font-size: 1.3rem;
+  }
+
+  .brand-logo {
+    height: 30px;
+  }
+
+  .admin-link {
+    display: none; /* در موبایل به داخل منوی همبرگری منتقل شده تا هدر خلوت بماند */
+  }
+
+  .cart-btn {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
+
+  .cart-label {
+    display: none; /* فقط آیکون و تعداد در موبایل نمایش داده شود */
+  }
+
+  /* 2. هیرو و بنر */
+  .hero {
+    padding: 35px 14px 28px;
+  }
+
+  .hero h2 {
+    font-size: 1.6rem;
+    line-height: 1.3;
+  }
+
+  .hero p {
+    font-size: 0.88rem;
+  }
+
+  /* 3. نوار ویژگی‌ها */
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0 10px;
+  }
+
+  .feature-item {
+    background: #fdfdfd;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+  }
+
+  /* 4. شبکه محصولات در موبایل (چیدمان جذاب ۲ ستونه مدرن) */
+  .grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .product-image {
+    height: 160px !important; /* ارتفاع کنترل‌شده تصویر در موبایل */
+  }
+
+  .product-content {
+    padding: 10px !important;
+  }
+
+  .product-title {
+    font-size: 0.88rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .product-desc {
+    display: none; /* در نمایش دو ستونه موبایل حذف می‌شود تا کارت‌ها تمیز و هم‌اندازه بمانند */
+  }
+
+  .product-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .product-price {
+    font-size: 0.95rem !important;
+    text-align: center;
+  }
+
+  .btn-buy, 
+  .btn-add-cart {
+    width: 100%;
+    padding: 8px 10px !important;
+    font-size: 0.8rem !important;
+    justify-content: center;
+  }
+
+  /* 5. مدال سبد خرید در موبایل (Bottom-sheet مدرن) */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-content {
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 85vh !important;
+  }
+
+  /* 6. منوی کشویی دسته‌بندی‌ها */
+  .category-drawer {
+    width: 80% !important;
+    max-width: 310px !important;
+  }
+}
+
+/* ========================================================
+   🛠️ استایل‌های بهینه‌سازی پنل ادمین در موبایل (Admin Panel)
+   ======================================================== */
+@media (max-width: 768px) {
+
+  /* کانتینر پنل ادمین */
+  .admin-container, 
+  .admin-wrapper, 
+  .dashboard-container {
+    padding: 12px !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* فرم افزودن محصول در موبایل */
+  .admin-form, 
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .admin-form input,
+  .admin-form textarea,
+  .admin-form select,
+  .admin-form button {
+    width: 100% !important;
+    font-size: 0.9rem !important;
+    min-height: 44px; /* حداقل اندازه استاندارد برای تاچ با انگشت */
+  }
+
+  /* حل مشکل اسکرول و به هم ریختن جدول سفارشات و محصولات */
+  .table-responsive,
+  .admin-table-wrapper {
+    width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    margin-bottom: 20px;
+  }
+
+  table {
+    width: 100% !important;
+    min-width: 580px; /* اجازه اسکرول افقی نرم به جای له شدن ستون‌ها */
+    font-size: 0.82rem !important;
+  }
+
+  table th, 
+  table td {
+    padding: 8px 10px !important;
+    white-space: nowrap;
+  }
+
+  /* تصاویر بندانگشتی محصولات در جدول ادمین */
+  table img,
+  .admin-thumb {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* دکمه‌های اکشن (حذف، ویرایش، تغییر وضعیت) */
+  .action-btn, 
+  .btn-delete, 
+  .btn-edit {
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* برای موبایل‌های بسیار کوچک (زیر 380px) */
+@media (max-width: 380px) {
+  .grid {
+    grid-template-columns: 1fr !important; /* تبدیل به تک ستونه برای خوانایی */
+  }
+
+  .product-image {
+    height: 200px !important;
+  }
+}

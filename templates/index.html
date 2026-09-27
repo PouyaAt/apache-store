@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>فروشگاه آپاچی | APACHE Store</title>
+  
+  <!-- فونت وزیرمتن برای ظاهر جذاب فارسی -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static/style.css" />
+</head>
+<body>
+
+  <!-- نوار اعلان بالای سایت -->
+  <div class="announcement-bar">
+    <span>⚡ ارسال رایگان برای خریدهای بالای ۵۰۰ هزار تومان • کد تخفیف ۱۰٪: <strong class="badge-code">APACHE10</strong></span>
+  </div>
+
+  <!-- لایه تاریک پشت منوی کشویی -->
+  <div id="menuOverlay" class="menu-overlay"></div>
+
+  <!-- منوی همبرگری کشویی (Drawer) -->
+  <aside id="categoryDrawer" class="category-drawer">
+    <div class="drawer-header">
+      <div class="drawer-brand">
+        <span class="brand-text">APACHE<span class="brand-dot">.</span></span>
+      </div>
+      <button id="closeMenuBtn" class="close-drawer-btn" aria-label="بستن منو">&times;</button>
+    </div>
+
+    <div class="drawer-content">
+      <div class="drawer-title">دسته‌بندی محصولات</div>
+      <nav class="drawer-nav">
+        <button class="drawer-item active" data-category="all">
+          <span class="drawer-icon">🔥</span>
+          <span>همه محصولات</span>
+        </button>
+        <button class="drawer-item" data-category="hats">
+          <span class="drawer-icon">🧢</span>
+          <span>کلاه</span>
+        </button>
+        <button class="drawer-item" data-category="necklaces">
+          <span class="drawer-icon">📿</span>
+          <span>گردنبند و بدلیجات</span>
+        </button>
+        <button class="drawer-item" data-category="watches">
+          <span class="drawer-icon">⌚</span>
+          <span>ساعت مچی</span>
+        </button>
+        <button class="drawer-item" data-category="socks">
+          <span class="drawer-icon">🧦</span>
+          <span>جوراب فانتزی</span>
+        </button>
+        <button class="drawer-item" data-category="mugs">
+          <span class="drawer-icon">☕</span>
+          <span>ماگ و لیوان</span>
+        </button>
+        <button class="drawer-item" data-category="bags">
+          <span class="drawer-icon">🎒</span>
+          <span>کیف و کوله</span>
+        </button>
+      </nav>
+
+      <div class="drawer-footer">
+        <a href="/admin" class="drawer-admin-btn">ورود به پنل مدیریت</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- هدر اصلی -->
+  <header class="topbar">
+    <div class="container header-content">
+      <div class="header-right">
+        <!-- دکمه همبرگری -->
+        <button id="openMenuBtn" class="hamburger-btn" aria-label="منوی دسته‌بندی">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </button>
+
+        <div class="brand-wrapper">
+          <img 
+            src="../static/images/logo.jpg" 
+            alt="لوگوی آپاچی" 
+            class="brand-logo" 
+            onerror="this.style.display='none'"
+          />
+          <a href="/" class="brand-text">
+            APACHE<span class="brand-dot">.</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- دکمه‌های کنترلی سمت چپ -->
+      <div class="nav-actions">
+        <a href="/admin" class="admin-link">پنل ادمین</a>
+        <button id="cartBtn" class="cart-btn" aria-label="سبد خرید">
+          <span class="cart-icon">🛒</span>
+          <span class="cart-label">سبد خرید</span>
+          <span id="cartCount" class="cart-badge">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- بخش بنر اصلی (Hero) -->
+  <section class="hero">
+    <div class="container hero-content">
+      <span class="hero-badge">NEW DROP 2026</span>
+      <h2>استایل خاص خودت رو بساز</h2>
+      <p>مجموعه‌ای از ترندی‌ترین اکسسوری‌ها، بدلیجات و کلاه‌های استریت‌استایل با کیفیت برتر</p>
+    </div>
+  </section>
+
+  <!-- نوار ویژگی‌ها -->
+  <section class="features-bar">
+    <div class="container features-grid">
+      <div class="feature-item">
+        <span class="f-icon">✨</span>
+        <div><strong>طراحی خاص و ترندی</strong><p>انتخاب شده از جدیدترین سبک‌ها</p></div>
+      </div>
+      <div class="feature-item">
+        <span class="f-icon">🚀</span>
+        <div><strong>ارسال سریع</strong><p>بسته‌بندی ایمن و فوری</p></div>
+      </div>
+      <div class="feature-item">
+        <span class="f-icon">🔒</span>
+        <div><strong>ثبت سفارش آسان</strong><p>ساده و مطمئن در چند ثانیه</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- محتوای اصلی فروشگاه -->
+  <main class="container store-container">
+    <!-- تب‌های دسته‌بندی افقی -->
+    <div class="tabs-wrapper">
+      <div class="tabs" id="categoryTabs">
+        {% for c in categories %}
+          <button class="tab" data-category="{{ c }}">
+            {% if c == 'hats' %}کلاه
+            {% elif c == 'necklaces' %}گردنبند
+            {% elif c == 'watches' %}ساعت
+            {% elif c == 'socks' %}جوراب
+            {% elif c == 'mugs' %}ماگ
+            {% elif c == 'bags' %}کیف
+            {% else %}{{ c }}{% endif %}
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- بخش کارت‌های محصولات -->
+    <section class="products-section">
+      <div class="section-head">
+        <h3 id="activeCategoryTitle">همه محصولات</h3>
+        <span class="head-line"></span>
+      </div>
+
+      <div id="productsGrid" class="grid"></div>
+
+      <div id="emptyState" class="empty" style="display: none;">
+        <div class="empty-icon">🎒</div>
+        <h4>محصولی در این دسته یافت نشد</h4>
+        <p>به زودی آیتم‌های جذاب جدیدی به این بخش اضافه می‌شود.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- مودال سبد خرید -->
+  <div id="cartModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>سبد خرید شما</h2>
+        <button id="closeCartBtn" class="close-btn" aria-label="بستن">&times;</button>
+      </div>
+      
+      <div id="cartItemsList" class="cart-items"></div>
+
+      <div class="cart-summary">
+        <div class="total-row">
+          <span>مبلغ کل سفارش:</span>
+          <span id="cartTotalPrice">۰ تومان</span>
+        </div>
+        
+        <button id="checkoutBtn" class="btn-checkout" type="button">
+          تکمیل سفارش و تسویه
+        </button>
+        
+        <form id="checkoutForm" class="checkout-form" hidden>
+          <div class="form-group">
+            <label for="customerName">نام و نام خانوادگی</label>
+            <input id="customerName" name="name" type="text" autocomplete="name" placeholder="مثلاً: علی محمدی" required>
+          </div>
+        
+          <div class="form-group">
+            <label for="customerPhone">شماره موبایل</label>
+            <input id="customerPhone" name="phone" type="tel" autocomplete="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required>
+          </div>
+        
+          <div class="form-group">
+            <label for="customerAddress">آدرس کامل پستی</label>
+            <textarea id="customerAddress" name="address" autocomplete="street-address" rows="3" placeholder="استان، شهر، خیابان، کوچه، پلاک، زنگ" required></textarea>
+          </div>
+        
+          <p id="checkoutStatus" class="checkout-status" role="status"></p>
+        
+          <button id="submitOrderBtn" class="btn-checkout btn-submit-order" type="submit">
+            ثبت نهایی سفارش
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- فوتر -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h3>APACHE<span>.</span></h3>
+        <p>فروشگاه اختصاصی اکسسوری و استایل جوان‌پسند</p>
+      </div>
+      <p class="copyright">تمامی حقوق برای برند آپاچی (APACHE) محفوظ است © ۲۰۲۶</p>
+    </div>
+  </footer>
+
+  <script src="../static/app.js"></script>
+</body>
+</html>
