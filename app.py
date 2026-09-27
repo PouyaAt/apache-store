@@ -121,10 +121,10 @@ def admin_login_required(fn):
 
 
 # -----------------------
-# Static uploads route
+# Static media route (changed from /uploads to /media)
 # -----------------------
-@app.route("/uploads/<path:filename>")
-def uploads(filename):
+@app.route("/media/<path:filename>")
+def media(filename):
     # This serves files from the persistent disk upload dir
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
 
@@ -220,7 +220,7 @@ def add_product():
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        image_url = f"/uploads/{unique_filename}"
+        image_url = f"/media/{unique_filename}"
 
     # 2) Or accept direct URL if no file uploaded
     if not image_url:
@@ -249,8 +249,8 @@ def delete_product(product_id):
         return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
 
     image_url = row["image_url"] or ""
-    if image_url.startswith("/uploads/"):
-        filename = image_url.replace("/uploads/", "", 1)
+    if image_url.startswith("/media/"):
+        filename = image_url.replace("/media/", "", 1)
         file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
         if os.path.exists(file_path):
             try:
@@ -373,6 +373,7 @@ def get_orders():
 # Entrypoint
 # -----------------------
 init_db()
+
 @app.route("/api/debug-paths")
 def debug_paths():
     base = os.path.dirname(os.path.abspath(__file__))
