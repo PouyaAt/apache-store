@@ -12,12 +12,32 @@ from werkzeug.utils import secure_filename
 
 # -----------------------
 # Paths (Liara disk-safe)
+# # -----------------------
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# # On Liara persistent disks are commonly mounted at /data (when mountTo is "data")
+# # Fallback to project-local ./data for local dev.
+# DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
+# os.makedirs(DATA_DIR, exist_ok=True)
+
+# DB_PATH = os.path.join(DATA_DIR, "store.db")
+
+# UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+# os.makedirs(UPLOAD_DIR, exist_ok=True)
+# -----------------------
+# Paths (Liara disk-safe)
 # -----------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# On Liara persistent disks are commonly mounted at /data (when mountTo is "data")
-# Fallback to project-local ./data for local dev.
-DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
+# اگر دیسک در ریشه لینوکس باشد از /data استفاده می‌کند
+# در غیر این صورت از data کنار برنامه (/usr/src/app/data) استفاده می‌کند
+if os.path.exists("/data") and os.path.isdir("/data") and os.path.exists("/data/store.db"):
+    DATA_DIR = "/data"
+elif os.path.exists(os.path.join(BASE_DIR, "data")):
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+else:
+    DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
+
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(DATA_DIR, "store.db")
