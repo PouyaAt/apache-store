@@ -2,44 +2,53 @@ import os
 import time
 import sqlite3
 from functools import wraps
-from flask import Flask, jsonify, request, send_from_directory, render_template, session, redirect, url_for
+
+from flask import (
+    Flask, jsonify, request, send_from_directory,
+    render_template, session, redirect, url_for
+)
 from werkzeug.utils import secure_filename
 
+
+# -----------------------
+# Paths (Liara disk-safe)
+# -----------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# مسیر پوشه دیسک پایدار
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# On Liara persistent disks are commonly mounted at /data (when mountTo is "data")
+# Fallback to project-local ./data for local dev.
+DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# دیتابیس داخل دیسک پایدار
 DB_PATH = os.path.join(DATA_DIR, "store.db")
 
-# عکس‌های آپلود شده داخل دیسک پایدار
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
+# -----------------------
+# Flask app config
+# -----------------------
 app = Flask(__name__)
 app.config["UPLOAD_DIR"] = UPLOAD_DIR
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # حداکثر حجم فایل ۱۶ مگابایت
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MiB
 
 # --- Admin Auth Config ---
 app.secret_key = os.environ.get("SECRET_KEY", "apachezh3")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "apach")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "apach3")
 
-CATEGORIES = [
-    "hats",
-    "necklaces",
-    "watches",
-    "socks",
-    "mugs",
-    "bags",
-]
+CATEGORIES = ["hats", "necklaces", "watches", "socks", "mugs", "bags"]
 
+
+# -----------------------
+# Database helpers
+# -----------------------
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = db()
@@ -87,7 +96,7 @@ def init_db():
     )
     """)
 
-    # یک میگریشن خودکار کوچک در صورتی که دیتابیس قبلی ستون image_url نداشت:
+    # Safe small migration: ensure products.image_url exists (for older DBs)
     cur.execute("PRAGMA table_info(products)")
     columns = [col[1] for col in cur.fetchall()]
     if "image_url" not in columns:
@@ -95,6 +104,7 @@ def init_db():
 
     conn.commit()
     conn.close()
+
 
 # -----------------------
 # Auth helpers
@@ -109,10 +119,19 @@ def admin_login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+
+# -----------------------
+# Static uploads route
+# -----------------------
 @app.route("/uploads/<path:filename>")
 def uploads(filename):
+    # This serves files from the persistent disk upload dir
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
 
+
+# -----------------------
+# Admin routes
+# -----------------------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -128,20 +147,27 @@ def admin_login():
 
     return render_template("admin_login.html", error=None)
 
+
 @app.route("/admin/logout")
 def admin_logout():
     session.pop("admin_logged_in", None)
     return redirect(url_for("admin_login"))
 
+
 @app.route("/")
 def home():
     return render_template("index.html", categories=CATEGORIES)
+
 
 @app.route("/admin")
 @admin_login_required
 def admin_page():
     return render_template("admin.html", categories=CATEGORIES)
 
+
+# -----------------------
+# Products APIs
+# -----------------------
 @app.route("/api/products")
 def api_products():
     conn = db()
@@ -149,68 +175,6 @@ def api_products():
     conn.close()
     return jsonify([dict(r) for r in rows])
 
-@app.route("/api/admin/products", methods=["POST"])
-@admin_login_required
-def add_product():
-    name = request.form.get("name")
-    category = request.form.get("category")
-    if category not in CATEGORIES:
-        return jsonify({"ok": False, "error": "دسته‌بندی نامعتبر است"}), 400
-    price = request.form.get("price")
-    description = request.form.get("description", "")
-
-    if not name or not category or not price:
-        return jsonify({"ok": False, "error": "اطلاعات ناقص است"}), 400
-
-    image_url = ""
-    if "image_file" in request.files:
-        file = request.files["image_file"]
-        if file and file.filename != "":
-            filename = secure_filename(file.filename)
-            unique_filename = f"{int(time.time())}_{filename}"
-            save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
-            file.save(save_path)
-            image_url = f"/uploads/{unique_filename}"
-
-    if not image_url and request.form.get("image_url"):
-        image_url = request.form.get("image_url")
-
-    conn = db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO products (name, category, price, image_url, description)
-        VALUES (?, ?, ?, ?, ?)
-    """, (name, category, int(price), image_url, description))
-    conn.commit()
-    new_id = cur.lastrowid
-    conn.close()
-
-    return jsonify({"ok": True, "message": "محصول با موفقیت اضافه شد", "id": new_id})
-
-@app.route("/api/admin/products/<int:product_id>", methods=["DELETE"])
-@admin_login_required
-def delete_product(product_id):
-    conn = db()
-    row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
-    if not row:
-        conn.close()
-        return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
-
-    image_url = row["image_url"]
-    if image_url and image_url.startswith("/uploads/"):
-        filename = image_url.replace("/uploads/", "")
-        file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception as e:
-                print("Failed to remove file:", e)
-
-    conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"ok": True, "message": "محصول با موفقیت حذف شد"})
 
 @app.route("/api/products_by_category")
 def products_by_category():
@@ -223,9 +187,86 @@ def products_by_category():
         cat = r["category"]
         if cat in grouped:
             grouped[cat].append(dict(r))
-
     return jsonify(grouped)
 
+
+@app.route("/api/admin/products", methods=["POST"])
+@admin_login_required
+def add_product():
+    name = (request.form.get("name") or "").strip()
+    category = (request.form.get("category") or "").strip()
+    price_raw = (request.form.get("price") or "").strip()
+    description = (request.form.get("description") or "").strip()
+
+    if not name or not category or not price_raw:
+        return jsonify({"ok": False, "error": "اطلاعات ناقص است"}), 400
+
+    if category not in CATEGORIES:
+        return jsonify({"ok": False, "error": "دسته‌بندی نامعتبر است"}), 400
+
+    try:
+        price = int(price_raw)
+        if price < 0:
+            raise ValueError()
+    except ValueError:
+        return jsonify({"ok": False, "error": "قیمت نامعتبر است"}), 400
+
+    image_url = ""
+
+    # 1) Upload file
+    file = request.files.get("image_file")
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+        unique_filename = f"{int(time.time())}_{filename}"
+        save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
+        file.save(save_path)
+        image_url = f"/uploads/{unique_filename}"
+
+    # 2) Or accept direct URL if no file uploaded
+    if not image_url:
+        image_url = (request.form.get("image_url") or "").strip()
+
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO products (name, category, price, image_url, description)
+        VALUES (?, ?, ?, ?, ?)
+    """, (name, category, price, image_url, description))
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+
+    return jsonify({"ok": True, "message": "محصول با موفقیت اضافه شد", "id": new_id})
+
+
+@app.route("/api/admin/products/<int:product_id>", methods=["DELETE"])
+@admin_login_required
+def delete_product(product_id):
+    conn = db()
+    row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
+
+    image_url = row["image_url"] or ""
+    if image_url.startswith("/uploads/"):
+        filename = image_url.replace("/uploads/", "", 1)
+        file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print("Failed to remove file:", e)
+
+    conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "message": "محصول با موفقیت حذف شد"})
+
+
+# -----------------------
+# Checkout / Orders APIs
+# -----------------------
 @app.route("/api/checkout", methods=["POST"])
 def checkout():
     data = request.get_json(silent=True)
@@ -300,28 +341,38 @@ def checkout():
     finally:
         conn.close()
 
-@app.route('/api/orders', methods=['GET'])
+
+@app.route("/api/orders", methods=["GET"])
 @admin_login_required
 def get_orders():
     conn = db()
-    orders = conn.execute('SELECT * FROM orders ORDER BY created_at DESC').fetchall()
+    orders = conn.execute("SELECT * FROM orders ORDER BY created_at DESC").fetchall()
 
     order_list = []
     for order in orders:
-        items = conn.execute('SELECT * FROM order_items WHERE order_id = ?', (order['id'],)).fetchall()
+        items = conn.execute(
+            "SELECT * FROM order_items WHERE order_id = ?",
+            (order["id"],)
+        ).fetchall()
+
         order_list.append({
-            'id': order['id'],
-            'customer_name': order['customer_name'],
-            'customer_phone': order['customer_phone'],
-            'customer_address': order['customer_address'],
-            'total_price': order['total_price'],
-            'created_at': order['created_at'],
-            'items': [dict(item) for item in items]
+            "id": order["id"],
+            "customer_name": order["customer_name"],
+            "customer_phone": order["customer_phone"],
+            "customer_address": order["customer_address"],
+            "total_price": order["total_price"],
+            "created_at": order["created_at"],
+            "items": [dict(item) for item in items]
         })
 
     conn.close()
     return jsonify(order_list)
 
+
+# -----------------------
+# Entrypoint
+# -----------------------
+init_db()
+
 if __name__ == "__main__":
-    init_db()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
