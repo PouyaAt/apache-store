@@ -9,35 +9,12 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 # -----------------------
-# Paths (Liara Disk Auto-Detection)
+# Paths (Hardcoded Liara Disk Mount)
 # -----------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MOUNT_POINT = "/usr/src/app/data"
 
-# بررسی مسیرهای محتمل دیسک لیارا به ترتیب اولویت
-CANDIDATE_PATHS = [
-    "/usr/src/app/data",
-    "/data",
-    os.path.join(BASE_DIR, "data")
-]
-
-MOUNT_POINT = None
-for p in CANDIDATE_PATHS:
-    try:
-        os.makedirs(p, exist_ok=True)
-        # تست نوشتن برای اطمینان از دسترسی دیسک
-        test_file = os.path.join(p, ".disk_test")
-        with open(test_file, "w") as f:
-            f.write("ok")
-        os.remove(test_file)
-        MOUNT_POINT = p
-        break
-    except Exception:
-        continue
-
-if not MOUNT_POINT:
-    MOUNT_POINT = os.path.join(BASE_DIR, "data")
-    os.makedirs(MOUNT_POINT, exist_ok=True)
-
+os.makedirs(MOUNT_POINT, exist_ok=True)
 DB_PATH = os.path.join(MOUNT_POINT, "store.db")
 UPLOAD_DIR = os.path.join(MOUNT_POINT, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -147,9 +124,7 @@ def admin_login_required(fn):
 @app.route("/files/<path:filename>")
 def media(filename):
     full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-    exists = os.path.exists(full_path)
-
-    if not exists:
+    if not os.path.exists(full_path):
         return f"File not found on server at: {full_path}", 404
 
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
@@ -275,8 +250,10 @@ def delete_product(product_id):
         return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
 
     image_url = row["image_url"] or ""
-    if image_url.startswith("/media/"):
-        filename = image_url.replace("/media/", "", 1)
+    # پشتیبانی از هر دو پیشوند برای محصولات قدیمی و جدید
+    if image_url.startswith("/files/") or image_url.startswith("/media/"):
+        target_prefix = "/files/" if image_url.startswith("/files/") else "/media/"
+        filename = image_url.replace(target_prefix, "", 1)
         file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
         if os.path.exists(file_path):
             try:
