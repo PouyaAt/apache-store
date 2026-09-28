@@ -123,12 +123,19 @@ def admin_login_required(fn):
 # -----------------------
 @app.route("/storage/<path:filename>")
 def media(filename):
-    full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-    if not os.path.exists(full_path):
+    upload_dir = app.config["UPLOAD_DIR"]
+    full_path = os.path.join(upload_dir, filename)
+    
+    file_exists = os.path.exists(full_path)
+    
+    # لاگ کردن وضعیت برای عیب‌یابی در کنسول لیارا
+    print(f"[*] Attempting to serve: {filename}", flush=True)
+    print(f"[*] Target Path: {full_path}", flush=True)
+    print(f"[*] File Exists: {file_exists}", flush=True)
+    
+    if not file_exists:
         return f"File not found on server at: {full_path}", 404
-
-    return send_from_directory(app.config["UPLOAD_DIR"], filename)
-
+        
 
 # -----------------------
 # Admin routes
