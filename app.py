@@ -118,25 +118,20 @@ def admin_login_required(fn):
 
 # -----------------------
 # Static media route
-# -----------------------
-@app.route("/media/<path:filename>")
+# -----------------------@app.route("/media/<path:filename>")
 def media(filename):
-    file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-    file_exists = os.path.exists(file_path)
-    print(f"[MEDIA REQUEST] Target: {file_path} | Exists: {file_exists}", flush=True)
-
-    if not file_exists:
-        # جستجو در سایر مسیرهای احتمالی برای جلوگیری از 404 در صورت جابجایی دایرکتوری دیسک
-        alt_paths = [
-            os.path.join("/data/uploads", filename),
-            os.path.join(BASE_DIR, "data", "uploads", filename),
-            os.path.join(BASE_DIR, "uploads", filename)
-        ]
-        for alt in alt_paths:
-            if os.path.exists(alt):
-                print(f"[MEDIA FALLBACK] Found at: {alt}", flush=True)
-                return send_from_directory(os.path.dirname(alt), filename)
-
+    # لاگ کردن برای دیباگ
+    full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+    exists = os.path.exists(full_path)
+    
+    print(f"[DEBUG] Accessing: {filename}")
+    print(f"[DEBUG] UPLOAD_DIR: {app.config['UPLOAD_DIR']}")
+    print(f"[DEBUG] Full path checked: {full_path}")
+    print(f"[DEBUG] File exists: {exists}")
+    
+    if not exists:
+        return f"File not found on server at: {full_path}", 404
+        
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
 
 
