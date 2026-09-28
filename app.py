@@ -121,21 +121,13 @@ def admin_login_required(fn):
 # -----------------------
 # Static media route
 # -----------------------
-@app.route("/storage/<path:filename>")
+@app.route("/serve-img/<path:filename>")
 def media(filename):
+    # کدهای قبلی (همان نسخه دیباگ) را نگه دارید تا مطمئن شویم
     upload_dir = app.config["UPLOAD_DIR"]
     full_path = os.path.join(upload_dir, filename)
-    
-    file_exists = os.path.exists(full_path)
-    
-    # لاگ کردن وضعیت برای عیب‌یابی در کنسول لیارا
-    print(f"[*] Attempting to serve: {filename}", flush=True)
-    print(f"[*] Target Path: {full_path}", flush=True)
-    print(f"[*] File Exists: {file_exists}", flush=True)
-    
-    if not file_exists:
-        return f"File not found on server at: {full_path}", 404
-        
+    print(f"[*] Accessing: {full_path}", flush=True) 
+    return send_from_directory(upload_dir, filename)
 
 # -----------------------
 # Admin routes
@@ -228,7 +220,9 @@ def add_product():
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        image_url = f"/storage/{unique_filename}"
+        # تغییر از /storage/ به /serve-img/
+        image_url = f"/serve-img/{unique_filename}"
+
 
     # 2) Or accept direct URL if no file uploaded
     if not image_url:
