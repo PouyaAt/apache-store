@@ -89,7 +89,6 @@ def init_db():
     )
     """)
 
-    # Safe migration: ensure products.image_url exists
     cur.execute("PRAGMA table_info(products)")
     columns = [col[1] for col in cur.fetchall()]
     if "image_url" not in columns:
@@ -100,7 +99,6 @@ def init_db():
     print("[*] Database schema initialized and verified.", flush=True)
 
 
-# اجرای اولیه ساخت جداول
 init_db()
 
 
@@ -121,12 +119,11 @@ def admin_login_required(fn):
 # -----------------------
 # Static media route
 # -----------------------
-@app.route("/serve-img/<path:filename>")
+@app.route("/api/images/<path:filename>")
 def media(filename):
-    # کدهای قبلی (همان نسخه دیباگ) را نگه دارید تا مطمئن شویم
     upload_dir = app.config["UPLOAD_DIR"]
     full_path = os.path.join(upload_dir, filename)
-    print(f"[*] Accessing: {full_path}", flush=True) 
+    print(f"[*] Accessing file: {full_path}", flush=True)
     return send_from_directory(upload_dir, filename)
 
 # -----------------------
@@ -135,8 +132,8 @@ def media(filename):
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        username = (request.form.get("username") or "").strip()
-        password = (request.form.get("password") or "").strip()
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
 
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["admin_logged_in"] = True
@@ -193,10 +190,10 @@ def products_by_category():
 @app.route("/api/admin/products", methods=["POST"])
 @admin_login_required
 def add_product():
-    name = (request.form.get("name") or "").strip()
-    category = (request.form.get("category") or "").strip()
-    price_raw = (request.form.get("price") or "").strip()
-    description = (request.form.get("description") or "").strip()
+    name = request.form.get("name", "").strip()
+    category = request.form.get("category", "").strip()
+    price_raw = request.form.get("price", "").strip()
+    description = request.form.get("description", "").strip()
 
     if not name or not category or not price_raw:
         return jsonify({"ok": False, "error": "اطلاعات ناقص است"}), 400
@@ -213,20 +210,17 @@ def add_product():
 
     image_url = ""
 
-    # 1) Upload file
     file = request.files.get("image_file")
     if file and file.filename:
         filename = secure_filename(file.filename)
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        # تغییر از /storage/ به /serve-img/
-        image_url = f"/serve-img/{unique_filename}"
+        # مسیر جدید برای دور زدن Nginx
+        image_url = f"/api/images/{unique_filename}"
 
-
-    # 2) Or accept direct URL if no file uploaded
     if not image_url:
-        image_url = (request.form.get("image_url") or "").strip()
+        image_url = request.form.get("image_url", "").strip()
 
     conn = db()
     cur = conn.cursor()
@@ -251,15 +245,25 @@ def delete_product(product_id):
         return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
 
     image_url = row["image_url"] or ""
-    # پشتیبانی از هر دو پیشوند برای محصولات قدیمی و جدید
-    if image_url.startswith("/storage/") or image_url.startswith("/media/"):
-        filename = image_url.replace("/storage", "", 1)
-        file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception as e:
-                print("Failed to remove file:", e, flush=True)
+    
+    # حذف فایل در صورت وجود
+    if image_url:
+        filename = None
+        # استخراج نام فایل از مسیرهای احتمالی
+        if image_url.startswith("/api/images/"):
+            filename = image_url.replace("/api/images/", "", 1)
+        elif image_url.startswith("/serve-img/"):
+            filename = image_url.replace("/serve-img/", "", 1)
+        elif image_url.startswith("/storage/"):
+            filename = image_url.replace("/storage/", "", 1)
+        
+        if filename:
+            file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print("Failed to remove file:", e, flush=True)
 
     conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
     conn.commit()
@@ -299,7 +303,7 @@ def checkout():
         except Exception:
             return jsonify({"ok": False, "error": "Invalid cart item format"}), 400
 
-        if not product_name or price < 0 or quantity <= 0:
+        if not product_name or price < 0 or quantity < 0:
             return jsonify({"ok": False, "error": "Invalid cart item values"}), 400
 
         total_price += price * quantity
