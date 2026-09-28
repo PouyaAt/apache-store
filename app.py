@@ -144,7 +144,7 @@ def admin_login_required(fn):
 # -----------------------
 # Static media route
 # -----------------------
-@app.route("/media/<path:filename>")
+@app.route("/files/<path:filename>")
 def media(filename):
     full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
     exists = os.path.exists(full_path)
@@ -246,7 +246,7 @@ def add_product():
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        image_url = f"/media/{unique_filename}"
+        image_url = f"/files/{unique_filename}"
 
     # 2) Or accept direct URL if no file uploaded
     if not image_url:
