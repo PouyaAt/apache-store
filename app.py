@@ -119,12 +119,20 @@ def admin_login_required(fn):
 # -----------------------
 # Static media route
 # -----------------------
-@app.route("/api/images/<path:filename>")
+@app.route("/get-data-file/<path:filename>")
 def media(filename):
     upload_dir = app.config["UPLOAD_DIR"]
     full_path = os.path.join(upload_dir, filename)
-    print(f"[*] Accessing file: {full_path}", flush=True)
+    
+    # لاگِ فوری قبل از هر چیز
+    print(f"DEBUG: Request received for {filename}. Path: {full_path}", flush=True)
+    
+    if not os.path.exists(full_path):
+        print(f"DEBUG: File NOT found at {full_path}", flush=True)
+        return f"File not found: {full_path}", 404
+        
     return send_from_directory(upload_dir, filename)
+
 
 # -----------------------
 # Admin routes
@@ -194,6 +202,7 @@ def add_product():
     category = request.form.get("category", "").strip()
     price_raw = request.form.get("price", "").strip()
     description = request.form.get("description", "").strip()
+    
 
     if not name or not category or not price_raw:
         return jsonify({"ok": False, "error": "اطلاعات ناقص است"}), 400
@@ -217,7 +226,10 @@ def add_product():
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
         # مسیر جدید برای دور زدن Nginx
-        image_url = f"/api/images/{unique_filename}"
+        # تغییر URL به مسیر جدید
+
+        image_url = f"/get-data-file/{unique_filename}"
+
 
     if not image_url:
         image_url = request.form.get("image_url", "").strip()
@@ -248,9 +260,15 @@ def delete_product(product_id):
     
     # حذف فایل در صورت وجود
     if image_url:
+        
         filename = None
         # استخراج نام فایل از مسیرهای احتمالی
-        if image_url.startswith("/api/images/"):
+        # پشتیبانی از مسیر جدید در حذف
+        if image_url.startswith("/get-data-file/"):
+            filename = image_url.replace("/get-data-file/", "", 1)
+            file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+            # ... ادامه حذف ...
+        elif image_url.startswith("/api/images/"):
             filename = image_url.replace("/api/images/", "", 1)
         elif image_url.startswith("/serve-img/"):
             filename = image_url.replace("/serve-img/", "", 1)
