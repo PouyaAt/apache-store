@@ -121,7 +121,7 @@ def admin_login_required(fn):
 # -----------------------
 # Static media route
 # -----------------------
-@app.route("/files/<path:filename>")
+@app.route("/storage/<path:filename>")
 def media(filename):
     full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
     if not os.path.exists(full_path):
@@ -221,7 +221,7 @@ def add_product():
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        image_url = f"/files/{unique_filename}"
+        image_url = f"/storage/{unique_filename}"
 
     # 2) Or accept direct URL if no file uploaded
     if not image_url:
@@ -251,9 +251,8 @@ def delete_product(product_id):
 
     image_url = row["image_url"] or ""
     # پشتیبانی از هر دو پیشوند برای محصولات قدیمی و جدید
-    if image_url.startswith("/files/") or image_url.startswith("/media/"):
-        target_prefix = "/files/" if image_url.startswith("/files/") else "/media/"
-        filename = image_url.replace(target_prefix, "", 1)
+    if image_url.startswith("/storage/") or image_url.startswith("/media/"):
+        filename = image_url.replace("/storage", "", 1)
         file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
         if os.path.exists(file_path):
             try:
