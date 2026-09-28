@@ -9,28 +9,12 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-
-# -----------------------
-# Paths (Liara disk-safe)
-# # -----------------------
-# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# # On Liara persistent disks are commonly mounted at /data (when mountTo is "data")
-# # Fallback to project-local ./data for local dev.
-# DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
-# os.makedirs(DATA_DIR, exist_ok=True)
-
-# DB_PATH = os.path.join(DATA_DIR, "store.db")
-
-# UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
-# os.makedirs(UPLOAD_DIR, exist_ok=True)
 # -----------------------
 # Paths (Liara disk-safe)
 # -----------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# اگر دیسک در ریشه لینوکس باشد از /data استفاده می‌کند
-# در غیر این صورت از data کنار برنامه (/usr/src/app/data) استفاده می‌کند
+# بررسی اولویت‌دار مسیر دیسک لیارا
 if os.path.exists("/data") and os.path.isdir("/data") and os.path.exists("/data/store.db"):
     DATA_DIR = "/data"
 elif os.path.exists(os.path.join(BASE_DIR, "data")):
@@ -42,7 +26,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(DATA_DIR, "store.db")
 
-UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+UPLOAD_DIR = os.path.abspath(os.path.join(DATA_DIR, "uploads"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
@@ -116,7 +100,7 @@ def init_db():
     )
     """)
 
-    # Safe small migration: ensure products.image_url exists (for older DBs)
+    # Safe migration: ensure products.image_url exists
     cur.execute("PRAGMA table_info(products)")
     columns = [col[1] for col in cur.fetchall()]
     if "image_url" not in columns:
@@ -141,11 +125,26 @@ def admin_login_required(fn):
 
 
 # -----------------------
-# Static media route (changed from /uploads to /media)
+# Static media route
 # -----------------------
 @app.route("/media/<path:filename>")
 def media(filename):
-    # This serves files from the persistent disk upload dir
+    file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+    file_exists = os.path.exists(file_path)
+    print(f"[MEDIA REQUEST] Target: {file_path} | Exists: {file_exists}", flush=True)
+
+    if not file_exists:
+        # جستجو در سایر مسیرهای احتمالی برای جلوگیری از 404 در صورت جابجایی دایرکتوری دیسک
+        alt_paths = [
+            os.path.join("/data/uploads", filename),
+            os.path.join(BASE_DIR, "data", "uploads", filename),
+            os.path.join(BASE_DIR, "uploads", filename)
+        ]
+        for alt in alt_paths:
+            if os.path.exists(alt):
+                print(f"[MEDIA FALLBACK] Found at: {alt}", flush=True)
+                return send_from_directory(os.path.dirname(alt), filename)
+
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
 
 
@@ -276,7 +275,7 @@ def delete_product(product_id):
             try:
                 os.remove(file_path)
             except Exception as e:
-                print("Failed to remove file:", e)
+                print("Failed to remove file:", e, flush=True)
 
     conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
     conn.commit()
@@ -390,7 +389,7 @@ def get_orders():
 
 
 # -----------------------
-# Entrypoint
+# Entrypoint & Debug
 # -----------------------
 init_db()
 
