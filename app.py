@@ -1,4 +1,3 @@
-
 import os
 import time
 import sqlite3
@@ -10,20 +9,41 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 # -----------------------
-# Paths (Fixed to Liara configuration)
+# Paths (Liara Disk Auto-Detection)
 # -----------------------
-# طبق liara.json شما، دیسک در اینجا مانت شده است:
-MOUNT_POINT = "/usr/src/app/data"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# اگر در لوکال تست می‌کنید و این مسیر وجود ندارد، از پوشه جاری استفاده کن
-if not os.path.exists(MOUNT_POINT):
-    MOUNT_POINT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# بررسی مسیرهای محتمل دیسک لیارا به ترتیب اولویت
+CANDIDATE_PATHS = [
+    "/usr/src/app/data",
+    "/data",
+    os.path.join(BASE_DIR, "data")
+]
 
-os.makedirs(MOUNT_POINT, exist_ok=True)
+MOUNT_POINT = None
+for p in CANDIDATE_PATHS:
+    try:
+        os.makedirs(p, exist_ok=True)
+        # تست نوشتن برای اطمینان از دسترسی دیسک
+        test_file = os.path.join(p, ".disk_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        MOUNT_POINT = p
+        break
+    except Exception:
+        continue
+
+if not MOUNT_POINT:
+    MOUNT_POINT = os.path.join(BASE_DIR, "data")
+    os.makedirs(MOUNT_POINT, exist_ok=True)
 
 DB_PATH = os.path.join(MOUNT_POINT, "store.db")
 UPLOAD_DIR = os.path.join(MOUNT_POINT, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+print(f"[*] Initialized DB_PATH at: {DB_PATH}", flush=True)
+print(f"[*] Initialized UPLOAD_DIR at: {UPLOAD_DIR}", flush=True)
 
 # -----------------------
 # Flask app config
@@ -100,6 +120,11 @@ def init_db():
 
     conn.commit()
     conn.close()
+    print("[*] Database schema initialized and verified.", flush=True)
+
+
+# اجرای اولیه ساخت جداول
+init_db()
 
 
 # -----------------------
@@ -118,20 +143,15 @@ def admin_login_required(fn):
 
 # -----------------------
 # Static media route
-# -----------------------@app.route("/media/<path:filename>")
+# -----------------------
+@app.route("/media/<path:filename>")
 def media(filename):
-    # لاگ کردن برای دیباگ
     full_path = os.path.join(app.config["UPLOAD_DIR"], filename)
     exists = os.path.exists(full_path)
-    
-    print(f"[DEBUG] Accessing: {filename}")
-    print(f"[DEBUG] UPLOAD_DIR: {app.config['UPLOAD_DIR']}")
-    print(f"[DEBUG] Full path checked: {full_path}")
-    print(f"[DEBUG] File exists: {exists}")
-    
+
     if not exists:
         return f"File not found on server at: {full_path}", 404
-        
+
     return send_from_directory(app.config["UPLOAD_DIR"], filename)
 
 
@@ -376,19 +396,16 @@ def get_orders():
 
 
 # -----------------------
-# Entrypoint & Debug
+# Debug Route
 # -----------------------
-init_db()
-
 @app.route("/api/debug-paths")
 def debug_paths():
     base = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         "/data",
         "/data/uploads",
+        "/usr/src/app/data",
         os.path.join(base, "data"),
-        os.path.join(base, "data", "uploads"),
-        os.path.join(base, "uploads"),
         app.config.get("UPLOAD_DIR")
     ]
     result = {}
@@ -401,9 +418,11 @@ def debug_paths():
         else:
             result[p] = "NOT_FOUND"
     return jsonify({
+        "DB_PATH": DB_PATH,
         "current_UPLOAD_DIR": app.config.get("UPLOAD_DIR"),
         "scanned_paths": result
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=True)
