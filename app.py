@@ -1,8 +1,8 @@
+
 import os
 import time
 import sqlite3
 from functools import wraps
-
 from flask import (
     Flask, jsonify, request, send_from_directory,
     render_template, session, redirect, url_for
@@ -10,40 +10,32 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 # -----------------------
-# Paths (Liara disk-safe)
+# Paths (Fixed to Liara configuration)
 # -----------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# طبق liara.json شما، دیسک در اینجا مانت شده است:
+MOUNT_POINT = "/usr/src/app/data"
 
-# بررسی اولویت‌دار مسیر دیسک لیارا
-if os.path.exists("/data") and os.path.isdir("/data") and os.path.exists("/data/store.db"):
-    DATA_DIR = "/data"
-elif os.path.exists(os.path.join(BASE_DIR, "data")):
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-else:
-    DATA_DIR = "/data" if os.path.exists("/data") else os.path.join(BASE_DIR, "data")
+# اگر در لوکال تست می‌کنید و این مسیر وجود ندارد، از پوشه جاری استفاده کن
+if not os.path.exists(MOUNT_POINT):
+    MOUNT_POINT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
-os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(MOUNT_POINT, exist_ok=True)
 
-DB_PATH = os.path.join(DATA_DIR, "store.db")
-
-UPLOAD_DIR = os.path.abspath(os.path.join(DATA_DIR, "uploads"))
+DB_PATH = os.path.join(MOUNT_POINT, "store.db")
+UPLOAD_DIR = os.path.join(MOUNT_POINT, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 
 # -----------------------
 # Flask app config
 # -----------------------
 app = Flask(__name__)
 app.config["UPLOAD_DIR"] = UPLOAD_DIR
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MiB
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# --- Admin Auth Config ---
 app.secret_key = os.environ.get("SECRET_KEY", "apachezh3")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "apach")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "apach3")
-
 CATEGORIES = ["hats", "necklaces", "watches", "socks", "mugs", "bags"]
-
 
 # -----------------------
 # Database helpers
