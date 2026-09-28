@@ -1,10 +1,9 @@
 {
   "platform": "flask",
-  "app": "apache-store",
   "port": 5000,
   "disks": [
     {
-      "name": "store-data",
+      "name": "my-data-disk",
       "mountTo": "/usr/src/app/data"
     }
   ]
