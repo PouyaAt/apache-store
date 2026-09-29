@@ -40,6 +40,7 @@ CATEGORIES = ["hats", "necklaces", "watches", "socks", "mugs", "bags"]
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
@@ -58,6 +59,17 @@ def init_db():
     )
     """)
 
+    # جدول تنوع رنگ محصولات
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS product_variants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        color_name TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+    )
+    """)
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +77,7 @@ def init_db():
         customer_phone TEXT NOT NULL,
         customer_address TEXT NOT NULL,
         total_price INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -77,7 +90,8 @@ def init_db():
         product_name TEXT NOT NULL,
         price INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
-        FOREIGN KEY (order_id) REFERENCES orders (id)
+        selected_color TEXT DEFAULT '',
+        FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
     )
     """)
 
@@ -89,10 +103,21 @@ def init_db():
     )
     """)
 
+    # بررسی و ارتقای ستون‌های احتمالی گذشته (Migration)
     cur.execute("PRAGMA table_info(products)")
-    columns = [col[1] for col in cur.fetchall()]
-    if "image_url" not in columns:
+    p_columns = [col[1] for col in cur.fetchall()]
+    if "image_url" not in p_columns:
         cur.execute("ALTER TABLE products ADD COLUMN image_url TEXT")
+
+    cur.execute("PRAGMA table_info(orders)")
+    o_columns = [col[1] for col in cur.fetchall()]
+    if "status" not in o_columns:
+        cur.execute("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT 'pending'")
+
+    cur.execute("PRAGMA table_info(order_items)")
+    item_columns = [col[1] for col in cur.fetchall()]
+    if "selected_color" not in item_columns:
+        cur.execute("ALTER TABLE order_items ADD COLUMN selected_color TEXT DEFAULT ''")
 
     conn.commit()
     conn.close()
@@ -124,24 +149,20 @@ def media(filename):
     upload_dir = app.config["UPLOAD_DIR"]
     full_path = os.path.join(upload_dir, filename)
     
-    # لاگِ فوری قبل از هر چیز
-    print(f"DEBUG: Request received for {filename}. Path: {full_path}", flush=True)
-    
     if not os.path.exists(full_path):
-        print(f"DEBUG: File NOT found at {full_path}", flush=True)
         return f"File not found: {full_path}", 404
         
     return send_from_directory(upload_dir, filename)
 
 
 # -----------------------
-# Admin routes
+# Admin view routes
 # -----------------------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
 
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["admin_logged_in"] = True
@@ -171,38 +192,92 @@ def admin_page():
 
 
 # -----------------------
-# Products APIs
+# Products Public APIs
 # -----------------------
+def get_variants_mapping(conn):
+    """نقشه‌ای از تمام رنگ‌ها برای هر محصول ایجاد می‌کند"""
+    cur = conn.execute("SELECT * FROM product_variants ORDER BY id ASC")
+    variants_by_pid = {}
+    for row in cur.fetchall():
+        pid = row["product_id"]
+        if pid not in variants_by_pid:
+            variants_by_pid[pid] = []
+        variants_by_pid[pid].append({
+            "id": row["id"],
+            "color_name": row["color_name"],
+            "image_url": row["image_url"]
+        })
+    return variants_by_pid
+
+
 @app.route("/api/products")
 def api_products():
     conn = db()
     rows = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
+    variants_map = get_variants_mapping(conn)
     conn.close()
-    return jsonify([dict(r) for r in rows])
+
+    result = []
+    for r in rows:
+        prod = dict(r)
+        prod["variants"] = variants_map.get(prod["id"], [])
+        result.append(prod)
+    return jsonify(result)
 
 
 @app.route("/api/products_by_category")
 def products_by_category():
     conn = db()
     rows = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
+    variants_map = get_variants_mapping(conn)
     conn.close()
 
     grouped = {c: [] for c in CATEGORIES}
     for r in rows:
         cat = r["category"]
+        prod = dict(r)
+        prod["variants"] = variants_map.get(prod["id"], [])
         if cat in grouped:
-            grouped[cat].append(dict(r))
+            grouped[cat].append(prod)
     return jsonify(grouped)
+
+
+# -----------------------
+# Admin Stats & Operations APIs
+# -----------------------
+@app.route("/api/admin/stats", methods=["GET"])
+@admin_login_required
+def admin_stats():
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_price), 0) AS total_revenue FROM orders WHERE status != 'cancelled'")
+    order_stats = dict(cur.fetchone())
+
+    cur.execute("SELECT COUNT(*) AS pending_orders FROM orders WHERE status = 'pending'")
+    pending = cur.fetchone()["pending_orders"]
+
+    cur.execute("SELECT COUNT(*) AS total_products FROM products")
+    products_count = cur.fetchone()["total_products"]
+
+    conn.close()
+
+    return jsonify({
+        "ok": True,
+        "total_revenue": order_stats["total_revenue"],
+        "total_orders": order_stats["total_orders"],
+        "pending_orders": pending,
+        "total_products": products_count
+    })
 
 
 @app.route("/api/admin/products", methods=["POST"])
 @admin_login_required
 def add_product():
-    name = request.form.get("name", "").strip()
-    category = request.form.get("category", "").strip()
-    price_raw = request.form.get("price", "").strip()
-    description = request.form.get("description", "").strip()
-    
+    name = (request.form.get("name") or "").strip()
+    category = (request.form.get("category") or "").strip()
+    price_raw = (request.form.get("price") or "").strip()
+    description = (request.form.get("description") or "").strip()
 
     if not name or not category or not price_raw:
         return jsonify({"ok": False, "error": "اطلاعات ناقص است"}), 400
@@ -225,14 +300,10 @@ def add_product():
         unique_filename = f"{int(time.time())}_{filename}"
         save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
         file.save(save_path)
-        # مسیر جدید برای دور زدن Nginx
-        # تغییر URL به مسیر جدید
-
         image_url = f"/get-data-file/{unique_filename}"
 
-
     if not image_url:
-        image_url = request.form.get("image_url", "").strip()
+        image_url = (request.form.get("image_url") or "").strip()
 
     conn = db()
     cur = conn.cursor()
@@ -247,6 +318,56 @@ def add_product():
     return jsonify({"ok": True, "message": "محصول با موفقیت اضافه شد", "id": new_id})
 
 
+@app.route("/api/admin/products/<int:product_id>", methods=["PUT"])
+@admin_login_required
+def edit_product(product_id):
+    name = (request.form.get("name") or "").strip()
+    category = (request.form.get("category") or "").strip()
+    price_raw = (request.form.get("price") or "").strip()
+    description = (request.form.get("description") or "").strip()
+
+    if not name or not category or not price_raw:
+        return jsonify({"ok": False, "error": "نام، دسته‌بندی و قیمت الزامی است."}), 400
+
+    if category not in CATEGORIES:
+        return jsonify({"ok": False, "error": "دسته‌بندی نامعتبر است."}), 400
+
+    try:
+        price = int(price_raw)
+        if price < 0:
+            raise ValueError()
+    except ValueError:
+        return jsonify({"ok": False, "error": "قیمت نامعتبر است."}), 400
+
+    conn = db()
+    prod = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+    if not prod:
+        conn.close()
+        return jsonify({"ok": False, "error": "محصول یافت نشد."}), 404
+
+    image_url = prod["image_url"]
+
+    file = request.files.get("image_file")
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+        unique_filename = f"{int(time.time())}_{filename}"
+        save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
+        file.save(save_path)
+        image_url = f"/get-data-file/{unique_filename}"
+    elif request.form.get("image_url"):
+        image_url = request.form.get("image_url").strip()
+
+    conn.execute("""
+        UPDATE products
+        SET name = ?, category = ?, price = ?, image_url = ?, description = ?
+        WHERE id = ?
+    """, (name, category, price, image_url, description, product_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True, "message": "محصول با موفقیت ویرایش شد"})
+
+
 @app.route("/api/admin/products/<int:product_id>", methods=["DELETE"])
 @admin_login_required
 def delete_product(product_id):
@@ -256,32 +377,26 @@ def delete_product(product_id):
         conn.close()
         return jsonify({"ok": False, "error": "محصول یافت نشد"}), 404
 
+    # پاک کردن تصاویر فایل‌های وریانت این محصول از دیسک
+    variants = conn.execute("SELECT image_url FROM product_variants WHERE product_id = ?", (product_id,)).fetchall()
+    for v in variants:
+        v_url = v["image_url"] or ""
+        if v_url.startswith("/get-data-file/"):
+            fname = v_url.replace("/get-data-file/", "", 1)
+            fpath = os.path.join(app.config["UPLOAD_DIR"], fname)
+            if os.path.exists(fpath):
+                try: os.remove(fpath)
+                except Exception: pass
+
+    # پاک کردن تصویر اصلی از دیسک
     image_url = row["image_url"] or ""
-    
-    # حذف فایل در صورت وجود
-    if image_url:
-        
-        filename = None
-        # استخراج نام فایل از مسیرهای احتمالی
-        # پشتیبانی از مسیر جدید در حذف
-        if image_url.startswith("/get-data-file/"):
-            filename = image_url.replace("/get-data-file/", "", 1)
-            file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-            # ... ادامه حذف ...
-        elif image_url.startswith("/api/images/"):
-            filename = image_url.replace("/api/images/", "", 1)
-        elif image_url.startswith("/serve-img/"):
-            filename = image_url.replace("/serve-img/", "", 1)
-        elif image_url.startswith("/storage/"):
-            filename = image_url.replace("/storage/", "", 1)
-        
-        if filename:
-            file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    print("Failed to remove file:", e, flush=True)
+    if image_url and image_url.startswith("/get-data-file/"):
+        filename = image_url.replace("/get-data-file/", "", 1)
+        file_path = os.path.join(app.config["UPLOAD_DIR"], filename)
+        if os.path.exists(file_path):
+            try: os.remove(file_path)
+            except Exception as e:
+                print("Failed to remove file:", e, flush=True)
 
     conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
     conn.commit()
@@ -290,7 +405,62 @@ def delete_product(product_id):
 
 
 # -----------------------
-# Checkout / Orders APIs
+# Product Variants (Color) APIs
+# -----------------------
+@app.route("/api/admin/products/<int:product_id>/variants", methods=["POST"])
+@admin_login_required
+def add_product_variant(product_id):
+    color_name = (request.form.get("color_name") or "").strip()
+    if not color_name:
+        return jsonify({"ok": False, "error": "نام رنگ الزامی است."}), 400
+
+    image_url = ""
+    file = request.files.get("image_file")
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+        unique_filename = f"var_{int(time.time())}_{filename}"
+        save_path = os.path.join(app.config["UPLOAD_DIR"], unique_filename)
+        file.save(save_path)
+        image_url = f"/get-data-file/{unique_filename}"
+    elif request.form.get("image_url"):
+        image_url = request.form.get("image_url").strip()
+
+    if not image_url:
+        return jsonify({"ok": False, "error": "تصویر رنگ الزامی است."}), 400
+
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO product_variants (product_id, color_name, image_url)
+        VALUES (?, ?, ?)
+    """, (product_id, color_name, image_url))
+    conn.commit()
+    variant_id = cur.lastrowid
+    conn.close()
+
+    return jsonify({"ok": True, "variant_id": variant_id, "image_url": image_url})
+
+
+@app.route("/api/admin/variants/<int:variant_id>", methods=["DELETE"])
+@admin_login_required
+def delete_product_variant(variant_id):
+    conn = db()
+    variant = conn.execute("SELECT image_url FROM product_variants WHERE id = ?", (variant_id,)).fetchone()
+    if variant and variant["image_url"] and variant["image_url"].startswith("/get-data-file/"):
+        fname = variant["image_url"].replace("/get-data-file/", "", 1)
+        fpath = os.path.join(app.config["UPLOAD_DIR"], fname)
+        if os.path.exists(fpath):
+            try: os.remove(fpath)
+            except Exception: pass
+
+    conn.execute("DELETE FROM product_variants WHERE id = ?", (variant_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "message": "رنگ با موفقیت حذف شد"})
+
+
+# -----------------------
+# Checkout & Orders APIs
 # -----------------------
 @app.route("/api/checkout", methods=["POST"])
 def checkout():
@@ -304,10 +474,10 @@ def checkout():
     items = data.get("items") or []
 
     if not name or not phone or not address:
-        return jsonify({"ok": False, "error": "name, phone, address are required"}), 400
+        return jsonify({"ok": False, "error": "نام، شماره تماس و آدرس الزامی هستند."}), 400
 
     if not isinstance(items, list) or len(items) == 0:
-        return jsonify({"ok": False, "error": "Cart is empty"}), 400
+        return jsonify({"ok": False, "error": "سبد خرید خالی است."}), 400
 
     normalized_items = []
     total_price = 0
@@ -318,18 +488,20 @@ def checkout():
             product_name = (it.get("name") or "").strip()
             price = int(it.get("price", 0))
             quantity = int(it.get("quantity", 0))
+            selected_color = (it.get("selected_color") or "").strip()
         except Exception:
-            return jsonify({"ok": False, "error": "Invalid cart item format"}), 400
+            return jsonify({"ok": False, "error": "فرمت آیتم‌های سبد خرید نامعتبر است."}), 400
 
-        if not product_name or price < 0 or quantity < 0:
-            return jsonify({"ok": False, "error": "Invalid cart item values"}), 400
+        if not product_name or price < 0 or quantity <= 0:
+            return jsonify({"ok": False, "error": "مقادیر سبد خرید نامعتبر است."}), 400
 
         total_price += price * quantity
         normalized_items.append({
             "product_id": product_id,
             "product_name": product_name,
             "price": price,
-            "quantity": quantity
+            "quantity": quantity,
+            "selected_color": selected_color
         })
 
     conn = db()
@@ -337,8 +509,8 @@ def checkout():
     try:
         cur.execute(
             """
-            INSERT INTO orders (customer_name, customer_phone, customer_address, total_price)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO orders (customer_name, customer_phone, customer_address, total_price, status)
+            VALUES (?, ?, ?, ?, 'pending')
             """,
             (name, phone, address, total_price)
         )
@@ -347,16 +519,16 @@ def checkout():
         for it in normalized_items:
             cur.execute(
                 """
-                INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO order_items (order_id, product_id, product_name, price, quantity, selected_color)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (order_id, it["product_id"], it["product_name"], it["price"], it["quantity"])
+                (order_id, it["product_id"], it["product_name"], it["price"], it["quantity"], it["selected_color"])
             )
 
         conn.commit()
         return jsonify({
             "ok": True,
-            "message": "Order placed successfully",
+            "message": "سفارش با موفقیت ثبت شد",
             "order_id": order_id,
             "total_price": total_price
         })
@@ -371,7 +543,7 @@ def checkout():
 @admin_login_required
 def get_orders():
     conn = db()
-    orders = conn.execute("SELECT * FROM orders ORDER BY created_at DESC").fetchall()
+    orders = conn.execute("SELECT * FROM orders ORDER BY id DESC").fetchall()
 
     order_list = []
     for order in orders:
@@ -380,18 +552,35 @@ def get_orders():
             (order["id"],)
         ).fetchall()
 
-        order_list.append({
-            "id": order["id"],
-            "customer_name": order["customer_name"],
-            "customer_phone": order["customer_phone"],
-            "customer_address": order["customer_address"],
-            "total_price": order["total_price"],
-            "created_at": order["created_at"],
-            "items": [dict(item) for item in items]
-        })
+        order_dict = dict(order)
+        order_dict["items"] = [dict(item) for item in items]
+        order_list.append(order_dict)
 
     conn.close()
     return jsonify(order_list)
+
+
+@app.route("/api/admin/orders/<int:order_id>/status", methods=["PATCH"])
+@admin_login_required
+def update_order_status(order_id):
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status")
+    allowed_statuses = {"pending", "processing", "completed", "cancelled"}
+
+    if new_status not in allowed_statuses:
+        return jsonify({"ok": False, "error": "وضعیت نامعتبر است."}), 400
+
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
+    updated = cur.rowcount
+    conn.commit()
+    conn.close()
+
+    if updated == 0:
+        return jsonify({"ok": False, "error": "سفارش یافت نشد."}), 404
+
+    return jsonify({"ok": True, "message": "وضعیت با موفقیت به‌روزرسانی شد"})
 
 
 # -----------------------
