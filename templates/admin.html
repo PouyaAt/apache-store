@@ -3,100 +3,467 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>پنل مدیریت محصولات</title>
-  
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-  <h2>پنل مدیریت فروشگاه</h2>
-  <a href="/admin/logout" style="background: #ef4444; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500;">خروج از حساب</a>
-</div>
-
-
+  <title>پنل مدیریت فروشگاه آپاچی</title>
   <style>
-    body { font-family: sans-serif; background: #f8fafc; padding: 30px; margin: 0; }
-    .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; }
+    :root {
+      --primary: #0f172a;
+      --primary-hover: #1e293b;
+      --accent: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Top Bar */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 16px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+
+    .topbar h1 { font-size: 1.3rem; font-weight: 800; color: var(--primary); }
+    .btn-logout {
+      background: #fee2e2;
+      color: var(--danger);
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover { background: var(--danger); color: #fff; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .stat-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+    .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+    .stat-value.highlight { color: var(--accent); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-value.success { color: var(--success); }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: var(--primary);
+    }
+
+    /* Forms */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 680px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #334155; }
     input[type="text"], input[type="number"], select, textarea {
-      width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #fdfdfd;
+      outline: none;
+      transition: border-color 0.2s;
     }
-    button.submit-btn {
-      background: #0f172a; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold;
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+    .submit-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1rem;
+      transition: background 0.2s;
     }
-    button.submit-btn:hover { background: #1e293b; }
-    #status { margin-top: 15px; font-weight: bold; text-align: center; }
+    .submit-btn:hover { background: var(--primary-hover); }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Products Table */
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: right; }
+    th {
+      background: #f1f5f9;
+      color: var(--text-muted);
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      border-bottom: 2px solid var(--border);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      font-size: 0.92rem;
+    }
+    tr:hover { background: #fafbfc; }
+
+    .action-btn {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .btn-edit { background: #e0f2fe; color: #0284c7; }
+    .btn-delete { background: #fee2e2; color: var(--danger); }
+    .btn-variant { background: #fef3c7; color: #b45309; }
+
+    /* Orders Cards */
+    .order-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 10px;
+    }
+    .order-id { font-weight: 800; font-size: 1rem; color: var(--primary); }
+    .order-price { font-weight: 800; color: var(--success); font-size: 1.1rem; }
+    .order-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.9rem; }
+    .order-items-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.88rem; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 15px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      width: 100%;
+      max-width: 550px;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .variant-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: #fafbfc;
+    }
+    .variant-preview {
+      width: 38px;
+      height: 38px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>افزودن محصول جدید</h2>
+  <!-- Topbar -->
+  <header class="topbar">
+    <h1>پنل مدیریت فروشگاه</h1>
+    <a href="/admin/logout" class="btn-logout">خروج از حساب</a>
+  </header>
 
-  <!-- نکته کلیدی: enctype="multipart/form-data" حتما باید باشد -->
-  <form id="productForm" enctype="multipart/form-data">
-    <div class="form-group">
-      <label>نام محصول:</label>
-      <input type="text" name="name" required />
+  <!-- Live Stats KPI -->
+  <section class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-title">فروش کل</span>
+      <span class="stat-value success" id="statRevenue">۰ تومان</span>
     </div>
-
-    <div class="form-group">
-      <label>دسته‌بندی:</label>
-      <select name="category" required>
-        {% for c in categories %}
-          <option value="{{ c }}">{{ c }}</option>
-        {% endfor %}
-      </select>
+    <div class="stat-card">
+      <span class="stat-title">سفارش‌های در انتظار بررسی</span>
+      <span class="stat-value warning" id="statPendingOrders">۰</span>
     </div>
-
-    <div class="form-group">
-      <label>قیمت (تومان / $):</label>
-      <input type="number" name="price" required />
+    <div class="stat-card">
+      <span class="stat-title">کل سفارشات ثبت شده</span>
+      <span class="stat-value" id="statTotalOrders">۰</span>
     </div>
-
-    <div class="form-group">
-      <label>آپلود عکس محصول:</label>
-      <input type="file" name="image_file" accept="image/*" />
+    <div class="stat-card">
+      <span class="stat-title">تعداد کل محصولات</span>
+      <span class="stat-value highlight" id="statTotalProducts">۰</span>
     </div>
+  </section>
 
-    <div class="form-group">
-      <label>یا لینک عکس (اختیاری):</label>
-      <input type="text" name="image_url" placeholder="https://example.com/photo.jpg" />
+  <!-- Tabs Navigation -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" onclick="switchTab('ordersTab', this)">سفارش‌ها</button>
+    <button class="tab-btn" onclick="switchTab('productsTab', this)">محصولات موجود</button>
+    <button class="tab-btn" onclick="switchTab('addProductTab', this)">افزودن محصول جدید</button>
+  </nav>
+
+  <!-- Tab 1: Orders -->
+  <div id="ordersTab" class="tab-content active">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 class="card-title" style="margin:0;">سفارش‌های دریافتی</h2>
+        <button onclick="loadOrders(); loadStats();" style="background:#f1f5f9; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600;">بروزرسانی لیست</button>
+      </div>
+      <div id="ordersContainer">در حال بارگذاری سفارش‌ها...</div>
     </div>
-
-    <div class="form-group">
-      <label>توضیحات:</label>
-      <textarea name="description" rows="3"></textarea>
-    </div>
-
-    <button type="submit" id="submitBtn" class="submit-btn">ثبت محصول</button>
-    <div id="status"></div>
-  </form>
-
-  <!-- لیست محصولات -->
-  <hr style="margin: 40px 0; border: none; border-top: 1px solid #e2e8f0;" />
-  <h2>محصولات موجود</h2>
-  <div style="overflow-x:auto; margin-top: 15px;">
-    <table id="productsTable" style="width:100%; border-collapse: collapse; text-align: right; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-      <thead>
-        <tr style="background: #f1f5f9; color: #475569; border-bottom: 2px solid #e2e8f0;">
-          <th style="padding: 12px;">تصویر</th>
-          <th style="padding: 12px;">نام</th>
-          <th style="padding: 12px;">دسته</th>
-          <th style="padding: 12px;">قیمت</th>
-          <th style="padding: 12px; text-align: center;">عملیات</th>
-        </tr>
-      </thead>
-      <tbody id="adminProductsList"></tbody>
-    </table>
   </div>
 
-    <!-- بخش جدید سفارش‌ها -->
-    <hr style="margin: 40px 0; border: none; border-top: 1px solid #e2e8f0;" />
-    <h2>سفارش‌های دریافتی</h2>
-    <div id="ordersContainer" style="margin-top: 15px;">
-        در حال بارگذاری سفارش‌ها...
+  <!-- Tab 2: Products List -->
+  <div id="productsTab" class="tab-content">
+    <div class="card">
+      <h2 class="card-title">محصولات موجود در انبار</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>تصویر</th>
+              <th>نام محصول</th>
+              <th>دسته‌بندی</th>
+              <th>قیمت</th>
+              <th>تنوع رنگ</th>
+              <th style="text-align: center;">عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="adminProductsList">
+            <tr><td colspan="6" style="text-align:center; padding: 20px;">در حال دریافت اطلاعات...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
+
+  <!-- Tab 3: Add Product -->
+  <div id="addProductTab" class="tab-content">
+    <div class="card">
+      <h2 class="card-title">افزودن محصول جدید</h2>
+      <form id="productForm" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>نام محصول:</label>
+            <input type="text" name="name" required placeholder="مثلاً: ساعت کاسیو رترو" />
+          </div>
+
+          <div class="form-group">
+            <label>دسته‌بندی:</label>
+            <select name="category" required>
+              {% for c in categories %}
+                <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>قیمت (تومان):</label>
+            <input type="number" name="price" required placeholder="مثلاً: 250000" />
+          </div>
+
+          <div class="form-group">
+            <label>آپلود عکس اصلی محصول:</label>
+            <input type="file" name="image_file" accept="image/*" />
+          </div>
+
+          <div class="form-group full-width">
+            <label>یا لینک عکس اینترنتی (اختیاری):</label>
+            <input type="text" name="image_url" placeholder="https://example.com/photo.jpg" />
+          </div>
+
+          <div class="form-group full-width">
+            <label>توضیحات محصول:</label>
+            <textarea name="description" rows="3" placeholder="مشخصات، متریال یا نکات مهم محصول..."></textarea>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">ثبت محصول</button>
+        <div id="status" style="margin-top: 12px; font-weight: 700; text-align: center;"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 1: ویرایش محصول -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3 style="font-size:1.1rem; color:var(--primary);">ویرایش محصول</h3>
+      <button onclick="closeEditModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+    </div>
+    <form id="editProductForm" enctype="multipart/form-data">
+      <input type="hidden" name="product_id" id="edit_prod_id" />
+      <div class="form-group">
+        <label>نام محصول:</label>
+        <input type="text" name="name" id="edit_prod_name" required />
+      </div>
+      <div class="form-group">
+        <label>دسته‌بندی:</label>
+        <select name="category" id="edit_prod_category" required>
+          {% for c in categories %}
+            <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>قیمت (تومان):</label>
+        <input type="number" name="price" id="edit_prod_price" required />
+      </div>
+      <div class="form-group">
+        <label>تعویض عکس اصلی (اختیاری):</label>
+        <input type="file" name="image_file" accept="image/*" />
+      </div>
+      <div class="form-group">
+        <label>لینک عکس فعلی یا اینترنتی:</label>
+        <input type="text" name="image_url" id="edit_prod_image_url" />
+      </div>
+      <div class="form-group">
+        <label>توضیحات:</label>
+        <textarea name="description" id="edit_prod_description" rows="3"></textarea>
+      </div>
+      <button type="submit" id="editSubmitBtn" class="submit-btn">ذخیره تغییرات</button>
+      <div id="editStatus" style="margin-top: 10px; font-weight: bold; text-align: center;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: مدیریت رنگ‌ها و تنوع محصول (Variants) -->
+<div class="modal-overlay" id="variantModal">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+      <div>
+        <h3 style="font-size:1.1rem; color:var(--primary);">مدیریت تنوع رنگ</h3>
+        <span id="variantProductTitle" style="font-size:0.85rem; color:var(--text-muted);"></span>
+      </div>
+      <button onclick="closeVariantModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
     </div>
 
-<script src="../static/admin.js"></script>
+    <!-- فرم افزودن رنگ جدید -->
+    <form id="addVariantForm" enctype="multipart/form-data" style="margin-bottom: 20px; background: #f8fafc; padding: 14px; border-radius: 8px;">
+      <input type="hidden" id="variantProductId" />
+      <div class="form-group">
+        <label>نام رنگ:</label>
+        <input type="text" id="variantColorName" required placeholder="مثلاً: مشکی، نقره‌ای، طلایی" />
+      </div>
+      <div class="form-group">
+        <label>آپلود عکس اختصاصی این رنگ:</label>
+        <input type="file" id="variantImageFile" accept="image/*" />
+      </div>
+      <div class="form-group">
+        <label>یا لینک عکس (اختیاری):</label>
+        <input type="text" id="variantImageUrl" placeholder="https://example.com/photo-silver.jpg" />
+      </div>
+      <button type="submit" id="addVariantBtn" class="submit-btn" style="padding: 9px 18px; font-size: 0.9rem;">+ ثبت رنگ جدید</button>
+      <div id="variantStatus" style="margin-top: 8px; font-size: 0.85rem; text-align: center; font-weight: 600;"></div>
+    </form>
+
+    <!-- لیست رنگ‌های فعلی -->
+    <h4 style="font-size: 0.95rem; margin-bottom: 10px; color: var(--primary);">رنگ‌های ثبت‌شده برای این محصول:</h4>
+    <div id="variantsListContainer">در حال بارگذاری...</div>
+  </div>
+</div>
+
+<script src="/static/admin.js"></script>
 </body>
 </html>
