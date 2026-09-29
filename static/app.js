@@ -1,10 +1,13 @@
 let allGroupedProducts = {};
 let currentCategory = "hats";
 
-// خواندن سبد خرید از localStorage (اگر قبلا ذخیره شده بود)
+// سبد خرید ذخیره‌شده در localStorage
 let cart = JSON.parse(localStorage.getItem("store_cart")) || [];
 
-// المان‌های DOM
+// نگهداری وضعیت رنگ انتخاب شده هر محصول در حافظه موقت (product_id -> { colorName, imageUrl })
+const selectedVariants = {};
+
+// المان‌های صفحه
 const tabsContainer = document.getElementById("categoryTabs");
 const grid = document.getElementById("productsGrid");
 const emptyState = document.getElementById("emptyState");
@@ -22,26 +25,62 @@ const checkoutForm = document.getElementById("checkoutForm");
 const checkoutStatus = document.getElementById("checkoutStatus");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
 
-// ذخیره در localStorage و بروزرسانی رابط کاربری
+// المان کانتینر اعلان‌ها (Toast)
+const toastContainer = document.getElementById("toastContainer");
+
+// --------------------
+// نمایش قیمت به تومان با اعداد فارسی
+// --------------------
+function formatToman(amount) {
+  const n = Number(amount || 0);
+  return `${n.toLocaleString("fa-IR")} تومان`;
+}
+
+// --------------------
+// نمایش اعلان شیک (Toast)
+// --------------------
+function showToast(message, type = "success") {
+  if (!toastContainer) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="t-icon">${type === "error" ? "✕" : "✓"}</div>
+    <div class="t-text">${escapeHtml(message)}</div>
+  `;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = "toastOut 0.2s ease-out forwards";
+    setTimeout(() => toast.remove(), 250);
+  }, 2300);
+}
+
+// --------------------
+// مدیریت داده‌های سبد خرید
+// --------------------
 function saveCart() {
   localStorage.setItem("store_cart", JSON.stringify(cart));
   updateCartBadge();
   renderCartItems();
 }
 
-// بروزرسانی عدد بالای سبد خرید
 function updateCartBadge() {
-  const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  if (cartCount) {
-    cartCount.textContent = totalCount;
-  }
+  const totalCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  if (cartCount) cartCount.textContent = totalCount;
 }
 
+function cartTotal() {
+  return cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+}
+
+// --------------------
 // دریافت محصولات از بک‌اند
+// --------------------
 async function loadProducts() {
   try {
     const res = await fetch("/api/products_by_category");
-    if (!res.ok) throw new Error("Failed to load products");
+    if (!res.ok) throw new Error("خطا در بارگذاری محصولات");
     allGroupedProducts = await res.json();
 
     const firstTab = tabsContainer ? tabsContainer.querySelector(".tab") : null;
@@ -53,32 +92,27 @@ async function loadProducts() {
     updateCartBadge();
   } catch (err) {
     console.error(err);
-    if (grid) {
-      grid.innerHTML = `<p style="color:red;">Error loading products.</p>`;
-    }
+    if (grid) grid.innerHTML = `<p style="color:red; text-align:center;">خطا در دریافت لیست محصولات.</p>`;
   }
 }
 
-// نمایش کارت محصولات برای دسته انتخابی
+// --------------------
+// نمایش محصولات بر اساس دسته‌بندی
+// --------------------
 function renderCategory(category) {
   currentCategory = category;
+
   if (activeCategoryTitle) {
     activeCategoryTitle.textContent = category.toUpperCase();
   }
 
   if (tabsContainer) {
-    const buttons = tabsContainer.querySelectorAll(".tab");
-    buttons.forEach((btn) => {
-      if (btn.dataset.category === category) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
+    tabsContainer.querySelectorAll(".tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.category === category);
     });
   }
 
   const products = allGroupedProducts[category] || [];
-
   if (products.length === 0) {
     if (grid) grid.innerHTML = "";
     if (emptyState) emptyState.style.display = "block";
@@ -86,139 +120,222 @@ function renderCategory(category) {
   }
 
   if (emptyState) emptyState.style.display = "none";
-  if (grid) {
-    grid.innerHTML = products.map(createProductCard).join("");
-  }
+  if (grid) grid.innerHTML = products.map(createProductCard).join("");
 }
 
-// قالب کارت محصول
+// --------------------
+// تغییر رنگ محصول در کارت
+// --------------------
+window.selectProductColor = function(productId, colorName, imageUrl, element) {
+  selectedVariants[productId] = {
+    colorName: colorName,
+    imageUrl: imageUrl
+  };
+
+  // تغییر تصویر کارت
+  const cardImg = document.getElementById(`product-img-${productId}`);
+  if (cardImg && imageUrl) {
+    cardImg.src = imageUrl;
+  }
+
+  // تغییر استایل دکمه فعال
+  const container = element.parentElement;
+  if (container) {
+    container.querySelectorAll(".color-chip").forEach(chip => chip.classList.remove("active-color"));
+    element.classList.add("active-color");
+  }
+};
+
+// --------------------
+// کارت هر محصول
+// --------------------
 function createProductCard(p) {
   const imgSrc = p.image_url ? p.image_url : "https://via.placeholder.com/300x200?text=No+Image";
   const desc = p.description ? p.description : "";
-  const priceFormatted = Number(p.price).toLocaleString();
+  const priceLabel = formatToman(p.price);
+
+  // اگر وریانت داشت و کاربر هنوز رنگی انتخاب نکرده، پیش‌فرض رنگ اول انتخاب شود
+  const hasVariants = p.variants && p.variants.length > 0;
+  if (hasVariants && !selectedVariants[p.id]) {
+    selectedVariants[p.id] = {
+      colorName: p.variants[0].color_name,
+      imageUrl: p.variants[0].image_url
+    };
+  }
+
+  const currentSelection = selectedVariants[p.id] || { colorName: "", imageUrl: imgSrc };
+  const displayImage = currentSelection.imageUrl || imgSrc;
+
+  // ساخت بخش دکمه‌های رنگی
+  let variantsHtml = "";
+  if (hasVariants) {
+    const chips = p.variants.map((v) => {
+      const isSelected = (currentSelection.colorName === v.color_name);
+      return `
+        <button type="button" 
+          class="color-chip ${isSelected ? 'active-color' : ''}" 
+          onclick='selectProductColor(${p.id}, ${JSON.stringify(v.color_name)}, ${JSON.stringify(v.image_url)}, this)'
+          title="${escapeHtml(v.color_name)}">
+          ${escapeHtml(v.color_name)}
+        </button>
+      `;
+    }).join("");
+
+    variantsHtml = `
+      <div class="product-variants-wrap" style="display:flex; gap:6px; flex-wrap:wrap; margin: 8px 0;">
+        ${chips}
+      </div>
+    `;
+  }
 
   return `
     <article class="card">
       <div class="card-img-wrap">
-        <img src="${imgSrc}" alt="${escapeHtml(p.name)}" loading="lazy" />
+        <img id="product-img-${p.id}" src="${displayImage}" alt="${escapeHtml(p.name)}" loading="lazy" />
       </div>
       <div class="card-body">
         <h3 class="card-title">${escapeHtml(p.name)}</h3>
         <p class="card-desc">${escapeHtml(desc)}</p>
+        ${variantsHtml}
         <div class="card-footer">
-          <span class="card-price">$${priceFormatted}</span>
-          <button class="btn-buy" onclick="addToCart(${p.id}, '${escapeHtml(p.name)}', ${p.price}, '${escapeHtml(p.image_url || '')}')">خرید محصول</button>
+          <span class="card-price">${priceLabel}</span>
+          <button class="btn-buy"
+            onclick='addToCart(${Number(p.id)}, ${JSON.stringify(String(p.name || ""))}, ${Number(p.price || 0)})'>
+            افزودن به سبد
+          </button>
         </div>
       </div>
     </article>
   `;
 }
 
-// افزودن محصول به سبد خرید
-window.addToCart = function(id, name, price, imageUrl) {
-  const existing = cart.find(item => item.id === id);
+// --------------------
+// توابع عملیات سبد خرید
+// --------------------
+window.addToCart = function (id, name, price) {
+  const currentSelection = selectedVariants[id] || { colorName: "", imageUrl: "" };
+  const selectedColor = currentSelection.colorName || "";
+  const imageUrl = currentSelection.imageUrl || "";
+
+  // آیتم را بر اساس شناسه محصول + رنگ تطبیق می‌دهیم تا رنگ‌های مختلف به عنوان ردیف جدا ثبت شوند
+  const existing = cart.find((item) => item.id === id && item.selected_color === selectedColor);
+  
   if (existing) {
     existing.quantity += 1;
   } else {
     cart.push({
-      id: id,
-      name: name,
-      price: price,
-      imageUrl: imageUrl,
-      quantity: 1
+      id: Number(id),
+      name: String(name),
+      price: Number(price || 0),
+      imageUrl: String(imageUrl || ""),
+      quantity: 1,
+      selected_color: selectedColor
     });
   }
+
   saveCart();
+  const msg = selectedColor ? `محصول (${selectedColor}) به سبد اضافه شد` : "محصول به سبد اضافه شد";
+  showToast(msg);
 };
 
-// تغییر تعداد محصول (+ یا -)
-window.changeQuantity = function(id, delta) {
-  const item = cart.find(i => i.id === id);
+window.changeQuantity = function (id, selectedColor, delta) {
+  const item = cart.find((i) => i.id === id && (i.selected_color || "") === (selectedColor || ""));
   if (!item) return;
 
   item.quantity += delta;
   if (item.quantity <= 0) {
-    cart = cart.filter(i => i.id !== id);
+    cart = cart.filter((i) => !(i.id === id && (i.selected_color || "") === (selectedColor || "")));
+    showToast("محصول از سبد حذف شد");
+  } else {
+    showToast("سبد خرید به‌روزرسانی شد");
   }
   saveCart();
 };
 
-// حذف کامل یک آیتم
-window.removeFromCart = function(id) {
-  cart = cart.filter(i => i.id !== id);
+window.removeFromCart = function (id, selectedColor) {
+  cart = cart.filter((i) => !(i.id === id && (i.selected_color || "") === (selectedColor || "")));
   saveCart();
+  showToast("محصول از سبد حذف شد");
 };
 
-// رندر کردن اقلام درون پنجره سبد خرید
-// رندر کردن اقلام درون پنجره سبد خرید
+// --------------------
+// رندر ظاهر سبد خرید مینیمال
+// --------------------
 function renderCartItems() {
   if (!cartItemsList) return;
 
-  // ۱. محاسبه مجموع قیمت در هر صورت
-  let total = 0;
-  cart.forEach(item => {
-    total += item.price * item.quantity;
-  });
+  const total = cartTotal();
 
-  // ۲. نمایش حالت خالی یا لیست اقلام
   if (cart.length === 0) {
-    cartItemsList.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px 0;">Your cart is empty.</div>`;
-    if (cartTotalPrice) cartTotalPrice.textContent = "$0";
+    cartItemsList.innerHTML = `
+      <div style="text-align:center; color:#64748b; padding: 36px 0;">
+        سبد خرید شما خالی است.
+      </div>
+    `;
+    if (cartTotalPrice) cartTotalPrice.textContent = formatToman(0);
     if (checkoutBtn) checkoutBtn.style.display = "none";
+    if (checkoutForm) checkoutForm.hidden = true;
     return;
   }
 
-  // اگر کالا داشتیم، دکمه checkout را نشان بده
   if (checkoutBtn) checkoutBtn.style.display = "block";
 
-  // ۳. رندر کردن لیست
-  cartItemsList.innerHTML = cart.map(item => {
-    const img = item.imageUrl || "https://via.placeholder.com/50";
-    return `
-      <div class="cart-item">
-        <img src="${img}" alt="${escapeHtml(item.name)}" class="cart-item-img" />
-        <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name)}</div>
-          <div class="cart-item-price">$${Number(item.price).toLocaleString()}</div>
-        </div>
-        <div class="cart-item-controls">
-          <button class="qty-btn" onclick="changeQuantity(${item.id}, -1)">-</button>
-          <span class="qty-number">${item.quantity}</span>
-          <button class="qty-btn" onclick="changeQuantity(${item.id}, 1)">+</button>
-        </div>
-        <button class="cart-remove-btn" onclick="removeFromCart(${item.id})" title="Remove">&times;</button>
-      </div>
-    `;
-  }).join("");
+  cartItemsList.innerHTML = cart
+    .map((item) => {
+      const img = item.imageUrl || "https://via.placeholder.com/60";
+      const unit = formatToman(item.price);
+      const line = formatToman(Number(item.price) * Number(item.quantity));
+      const colorTag = item.selected_color ? `<span class="cart-color-tag" style="background:#f1f5f9; color:#475569; font-size:0.75rem; padding:2px 8px; border-radius:12px; margin-right:6px;">رنگ: ${escapeHtml(item.selected_color)}</span>` : "";
 
-  // ۴. بروزرسانی قیمت نهایی
-  if (cartTotalPrice) {
-    cartTotalPrice.textContent = `$${total.toLocaleString()}`;
-  }
+      return `
+        <div class="cart-item">
+          <img src="${img}" alt="${escapeHtml(item.name)}" class="cart-item-img" />
+          <div class="cart-item-info">
+            <div class="cart-item-title">
+              ${escapeHtml(item.name)}
+              ${colorTag}
+            </div>
+            <div class="cart-item-sub">
+              <span>فی: ${unit}</span>
+              <span>مجموع: ${line}</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="cart-item-controls">
+              <button class="qty-btn" onclick="changeQuantity(${item.id}, '${escapeHtml(item.selected_color || '')}', -1)" aria-label="کم کردن">−</button>
+              <span class="qty-number">${item.quantity}</span>
+              <button class="qty-btn" onclick="changeQuantity(${item.id}, '${escapeHtml(item.selected_color || '')}', 1)" aria-label="زیاد کردن">+</button>
+            </div>
+            <button class="cart-remove-btn" onclick="removeFromCart(${item.id}, '${escapeHtml(item.selected_color || '')}')" aria-label="حذف" title="حذف">✕</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  if (cartTotalPrice) cartTotalPrice.textContent = formatToman(total);
 }
 
-
-// هلپر برای جلوگیری از خطای کاراکترها در onclick و HTML
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/"/g, "&quot;")
+    .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-// باز و بسته شدن مودال
+// --------------------
+// رویدادهای مودال سبد خرید
+// --------------------
 if (cartBtn && cartModal) {
   cartBtn.addEventListener("click", () => {
     if (checkoutForm) {
       checkoutForm.hidden = true;
       checkoutForm.reset();
     }
-    if (checkoutStatus) {
-      checkoutStatus.textContent = "";
-    }
+    if (checkoutStatus) checkoutStatus.textContent = "";
     renderCartItems();
     cartModal.style.display = "flex";
   });
@@ -230,30 +347,28 @@ if (closeCartBtn && cartModal) {
   });
 }
 
-// بستن مودال با کلیک روی پس‌زمینه بیرونی
 if (cartModal) {
   cartModal.addEventListener("click", (e) => {
-    if (e.target === cartModal) {
-      cartModal.style.display = "none";
-    }
+    if (e.target === cartModal) cartModal.style.display = "none";
   });
 }
 
-// تعویض تب‌ها
+// تب‌های دسته‌بندی
 if (tabsContainer) {
   tabsContainer.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab");
     if (!btn) return;
-    const cat = btn.dataset.category;
-    renderCategory(cat);
+    renderCategory(btn.dataset.category);
   });
 }
 
-// باز کردن فرم Checkout با کلیک روی دکمه
+// --------------------
+// ثبت سفارش (Checkout)
+// --------------------
 if (checkoutBtn && checkoutForm) {
   checkoutBtn.addEventListener("click", () => {
     if (cart.length === 0) {
-      alert("Your cart is empty!");
+      showToast("سبد خرید خالی است", "error");
       return;
     }
     if (checkoutStatus) checkoutStatus.textContent = "";
@@ -263,7 +378,6 @@ if (checkoutBtn && checkoutForm) {
   });
 }
 
-// ثبت نهایی سفارش
 if (checkoutForm) {
   checkoutForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -271,8 +385,9 @@ if (checkoutForm) {
     if (cart.length === 0) {
       if (checkoutStatus) {
         checkoutStatus.style.color = "#ef4444";
-        checkoutStatus.textContent = "Your cart is empty.";
+        checkoutStatus.textContent = "سبد خرید خالی است.";
       }
+      showToast("سبد خرید خالی است", "error");
       return;
     }
 
@@ -281,117 +396,112 @@ if (checkoutForm) {
       name: (formData.get("name") || "").trim(),
       phone: (formData.get("phone") || "").trim(),
       address: (formData.get("address") || "").trim(),
-      items: cart
+      items: cart,
     };
 
     if (submitOrderBtn) {
       submitOrderBtn.disabled = true;
-      submitOrderBtn.textContent = "Placing order...";
+      submitOrderBtn.textContent = "در حال ثبت...";
     }
     if (checkoutStatus) checkoutStatus.textContent = "";
 
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(orderData)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
       });
 
       const result = await response.json();
-
       if (!response.ok || !result.ok) {
-        throw new Error(result.error || "Failed to place order.");
+        throw new Error(result.error || "ثبت سفارش ناموفق بود.");
       }
 
-      // ۱. خالی کردن سبد خرید و حافظه
+      // خالی کردن سبد
       cart = [];
       localStorage.setItem("store_cart", JSON.stringify(cart));
       updateCartBadge();
 
-      // ۲. ریست و مخفی کردن فرم و دکمه
       checkoutForm.reset();
       checkoutForm.hidden = true;
       if (checkoutBtn) checkoutBtn.style.display = "none";
-      if (cartTotalPrice) cartTotalPrice.textContent = `$${result.total_price.toLocaleString()}`;
 
-      // ۳. نمایش کارت تاییدیه سفارش داخل مودال
+      if (cartTotalPrice) cartTotalPrice.textContent = formatToman(result.total_price);
+
       if (cartItemsList) {
         cartItemsList.innerHTML = `
-          <div style="text-align: center; padding: 35px 15px;">
-            <div style="font-size: 46px; color: #10b981; line-height: 1; margin-bottom: 12px;">✓</div>
-            <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.25rem;">Order Placed Successfully!</h3>
-            <p style="color: #475569; font-size: 1rem; margin-bottom: 6px;">
-              Your Order ID: <strong style="color: #2563eb;">#${result.order_id}</strong>
+          <div style="text-align:center; padding: 30px 10px;">
+            <div style="font-size: 42px; color: #10b981; line-height: 1; margin-bottom: 10px;">✓</div>
+            <h3 style="color:#1e293b; margin-bottom: 6px; font-size: 1.1rem;">سفارش شما با موفقیت ثبت شد</h3>
+            <p style="color:#475569; font-size: 0.95rem; margin-bottom: 6px;">
+              شماره پیگیری: <strong style="color:#2563eb;">#${result.order_id}</strong>
             </p>
-            <p style="color: #94a3b8; font-size: 0.85rem;">Thank you for your purchase.</p>
+            <p style="color:#94a3b8; font-size: 0.82rem;">همکاران ما به زودی جهت ارسال با شما تماس می‌گیرند.</p>
           </div>
         `;
       }
+
+      showToast("سفارش با موفقیت ثبت شد");
     } catch (error) {
       if (checkoutStatus) {
         checkoutStatus.style.color = "#ef4444";
-        checkoutStatus.textContent = error.message || "An error occurred. Please try again.";
-      } else {
-        alert(error.message);
+        checkoutStatus.textContent = error.message || "خطا در ثبت سفارش.";
       }
+      showToast(error.message || "خطا در ثبت سفارش", "error");
     } finally {
       if (submitOrderBtn) {
         submitOrderBtn.disabled = false;
-        submitOrderBtn.textContent = "Place Order";
+        submitOrderBtn.textContent = "ثبت نهایی سفارش";
       }
     }
   });
 }
 
-// نمایش فوری نشانگر سبد و سپس واکشی محصولات
-// نمایش فوری نشانگر سبد و سپس واکشی محصولات
-updateCartBadge();
-renderCartItems(); // <--- این را حتما اضافه کن تا در لحظه باز شدن مودال یا لود صفحه، قیمت درست باشد
-loadProducts();
-
-
-// --- Hamburger Menu & Drawer Functionality ---
-const openMenuBtn = document.getElementById('openMenuBtn');
-const closeMenuBtn = document.getElementById('closeMenuBtn');
-const menuOverlay = document.getElementById('menuOverlay');
-const categoryDrawer = document.getElementById('categoryDrawer');
+// --------------------
+// منوی کشویی موبایل (Drawer)
+// --------------------
+const openMenuBtn = document.getElementById("openMenuBtn");
+const closeMenuBtn = document.getElementById("closeMenuBtn");
+const menuOverlay = document.getElementById("menuOverlay");
+const categoryDrawer = document.getElementById("categoryDrawer");
 
 function openDrawer() {
   if (categoryDrawer && menuOverlay) {
-    categoryDrawer.classList.add('open');
-    menuOverlay.classList.add('active');
+    categoryDrawer.classList.add("open");
+    menuOverlay.classList.add("active");
   }
 }
 
 function closeDrawer() {
   if (categoryDrawer && menuOverlay) {
-    categoryDrawer.classList.remove('open');
-    menuOverlay.classList.remove('active');
+    categoryDrawer.classList.remove("open");
+    menuOverlay.classList.remove("active");
   }
 }
 
-if (openMenuBtn) openMenuBtn.addEventListener('click', openDrawer);
-if (closeMenuBtn) closeMenuBtn.addEventListener('click', closeDrawer);
-if (menuOverlay) menuOverlay.addEventListener('click', closeDrawer);
+if (openMenuBtn) openMenuBtn.addEventListener("click", openDrawer);
+if (closeMenuBtn) closeMenuBtn.addEventListener("click", closeDrawer);
+if (menuOverlay) menuOverlay.addEventListener("click", closeDrawer);
 
-// اتصال آیتم‌های منوی کشویی به فیلتر دسته‌بندی
-document.querySelectorAll('.drawer-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
-    item.classList.add('active');
-    
-    const cat = item.getAttribute('data-category');
-    // کلیک همزمان روی تب مربوطه در صفحه اصلی
+document.querySelectorAll(".drawer-item").forEach((item) => {
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".drawer-item").forEach((i) => i.classList.remove("active"));
+    item.classList.add("active");
+
+    const cat = item.getAttribute("data-category");
     const matchingTab = document.querySelector(`.tab[data-category="${cat}"]`);
     if (matchingTab) {
       matchingTab.click();
-    } else if (cat === 'all') {
-      const allTab = document.querySelector('.tab:first-child');
+    } else if (cat === "all") {
+      const allTab = document.querySelector(".tab:first-child");
       if (allTab) allTab.click();
     }
-    
+
     closeDrawer();
   });
 });
+
+// شروع اولیه
+updateCartBadge();
+renderCartItems();
+loadProducts();
