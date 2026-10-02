@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>فروشگاه آپاچی | APACHE Store</title>
   
-  <!-- فونت وزیرمتن برای ظاهر جذاب فارسی -->
+  <!-- فونت وزیرمتن -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,8 +14,6 @@
 </head>
 
 <body>
-
-    
   <!-- لایه تاریک پشت منوی کشویی -->
   <div id="menuOverlay" class="menu-overlay"></div>
 
@@ -135,6 +133,7 @@
     <!-- تب‌های دسته‌بندی افقی -->
     <div class="tabs-wrapper">
       <div class="tabs" id="categoryTabs">
+        <button class="tab active" data-category="all">همه</button>
         {% for c in categories %}
           <button class="tab" data-category="{{ c }}">
             {% if c == 'hats' %}کلاه
@@ -174,7 +173,8 @@
         <button id="closeCartBtn" class="close-btn" aria-label="بستن">&times;</button>
       </div>
       
-      <div id="cartItemsList" class="cart-items"></div>
+      <!-- کانتینر اسکرول‌شونده اقلام -->
+      <div id="cartItemsList" class="cart-items" style="max-height: 380px; overflow-y: auto; padding: 4px;"></div>
 
       <div class="cart-summary">
         <div class="total-row">
@@ -222,8 +222,9 @@
       <p class="copyright">تمامی حقوق برای برند آپاچی (APACHE) محفوظ است © ۲۰۲۶</p>
     </div>
   </footer>
-<!-- Toast container -->
-<div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Toast container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <script src="../static/app.js"></script>
 </body>
