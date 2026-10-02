@@ -1,11 +1,22 @@
 let allGroupedProducts = {};
-let currentCategory = "hats";
+let currentCategory = "all";
 
 // سبد خرید ذخیره‌شده در localStorage
 let cart = JSON.parse(localStorage.getItem("store_cart")) || [];
 
 // نگهداری وضعیت رنگ انتخاب شده هر محصول در حافظه موقت (product_id -> { colorName, imageUrl })
 const selectedVariants = {};
+
+// نام فارسی دسته‌ها جهت نمایش عنوان
+const categoryNamesMap = {
+  all: "همه محصولات",
+  hats: "کلاه",
+  necklaces: "گردنبند و اکسسوری",
+  watches: "ساعت مچی",
+  socks: "جوراب فانتزی",
+  mugs: "ماگ و لیوان",
+  bags: "کیف و کوله"
+};
 
 // المان‌های صفحه
 const tabsContainer = document.getElementById("categoryTabs");
@@ -27,6 +38,19 @@ const submitOrderBtn = document.getElementById("submitOrderBtn");
 
 // المان کانتینر اعلان‌ها (Toast)
 const toastContainer = document.getElementById("toastContainer");
+
+// --------------------
+// کمکی: ضداسکریپت و ایمن‌سازی متون
+// --------------------
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 // --------------------
 // نمایش قیمت به تومان با اعداد فارسی
@@ -67,7 +91,7 @@ function saveCart() {
 
 function updateCartBadge() {
   const totalCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  if (cartCount) cartCount.textContent = totalCount;
+  if (cartCount) cartCount.textContent = totalCount.toLocaleString("fa-IR");
 }
 
 function cartTotal() {
@@ -82,17 +106,11 @@ async function loadProducts() {
     const res = await fetch("/api/products_by_category");
     if (!res.ok) throw new Error("خطا در بارگذاری محصولات");
     allGroupedProducts = await res.json();
-
-    const firstTab = tabsContainer ? tabsContainer.querySelector(".tab") : null;
-    if (firstTab && firstTab.dataset.category) {
-      currentCategory = firstTab.dataset.category;
-    }
-
     renderCategory(currentCategory);
     updateCartBadge();
   } catch (err) {
     console.error(err);
-    if (grid) grid.innerHTML = `<p style="color:red; text-align:center;">خطا در دریافت لیست محصولات.</p>`;
+    if (grid) grid.innerHTML = `<p style="color:red; text-align:center; padding: 20px;">خطا در دریافت لیست محصولات.</p>`;
   }
 }
 
@@ -103,7 +121,7 @@ function renderCategory(category) {
   currentCategory = category;
 
   if (activeCategoryTitle) {
-    activeCategoryTitle.textContent = category.toUpperCase();
+    activeCategoryTitle.textContent = categoryNamesMap[category] || category.toUpperCase();
   }
 
   if (tabsContainer) {
@@ -112,7 +130,13 @@ function renderCategory(category) {
     });
   }
 
-  const products = allGroupedProducts[category] || [];
+  let products = [];
+  if (category === "all") {
+    products = Object.values(allGroupedProducts).flat();
+  } else {
+    products = allGroupedProducts[category] || [];
+  }
+
   if (products.length === 0) {
     if (grid) grid.innerHTML = "";
     if (emptyState) emptyState.style.display = "block";
@@ -132,13 +156,11 @@ window.selectProductColor = function(productId, colorName, imageUrl, element) {
     imageUrl: imageUrl
   };
 
-  // تغییر تصویر کارت
   const cardImg = document.getElementById(`product-img-${productId}`);
   if (cardImg && imageUrl) {
     cardImg.src = imageUrl;
   }
 
-  // تغییر استایل دکمه فعال
   const container = element.parentElement;
   if (container) {
     container.querySelectorAll(".color-chip").forEach(chip => chip.classList.remove("active-color"));
@@ -154,7 +176,6 @@ function createProductCard(p) {
   const desc = p.description ? p.description : "";
   const priceLabel = formatToman(p.price);
 
-  // اگر وریانت داشت و کاربر هنوز رنگی انتخاب نکرده، پیش‌فرض رنگ اول انتخاب شود
   const hasVariants = p.variants && p.variants.length > 0;
   if (hasVariants && !selectedVariants[p.id]) {
     selectedVariants[p.id] = {
@@ -166,7 +187,6 @@ function createProductCard(p) {
   const currentSelection = selectedVariants[p.id] || { colorName: "", imageUrl: imgSrc };
   const displayImage = currentSelection.imageUrl || imgSrc;
 
-  // ساخت بخش دکمه‌های رنگی
   let variantsHtml = "";
   if (hasVariants) {
     const chips = p.variants.map((v) => {
@@ -174,7 +194,7 @@ function createProductCard(p) {
       return `
         <button type="button" 
           class="color-chip ${isSelected ? 'active-color' : ''}" 
-          onclick='selectProductColor(${p.id}, ${JSON.stringify(v.color_name)}, ${JSON.stringify(v.image_url)}, this)'
+          onclick='selectProductColor(${p.id}, ${JSON.stringify(v.color_name || "")}, ${JSON.stringify(v.image_url || "")}, this)'
           title="${escapeHtml(v.color_name)}">
           ${escapeHtml(v.color_name)}
         </button>
@@ -217,7 +237,6 @@ window.addToCart = function (id, name, price) {
   const selectedColor = currentSelection.colorName || "";
   const imageUrl = currentSelection.imageUrl || "";
 
-  // آیتم را بر اساس شناسه محصول + رنگ تطبیق می‌دهیم تا رنگ‌های مختلف به عنوان ردیف جدا ثبت شوند
   const existing = cart.find((item) => item.id === id && item.selected_color === selectedColor);
   
   if (existing) {
@@ -259,7 +278,7 @@ window.removeFromCart = function (id, selectedColor) {
 };
 
 // --------------------
-// رندر ظاهر سبد خرید مینیمال
+// رندر اقلام در مودال سبد خرید
 // --------------------
 function renderCartItems() {
   if (!cartItemsList) return;
@@ -285,7 +304,9 @@ function renderCartItems() {
       const img = item.imageUrl || "https://via.placeholder.com/60";
       const unit = formatToman(item.price);
       const line = formatToman(Number(item.price) * Number(item.quantity));
-      const colorTag = item.selected_color ? `<span class="cart-color-tag" style="background:#f1f5f9; color:#475569; font-size:0.75rem; padding:2px 8px; border-radius:12px; margin-right:6px;">رنگ: ${escapeHtml(item.selected_color)}</span>` : "";
+      const colorTag = item.selected_color 
+        ? `<span class="cart-color-tag" style="background:#f1f5f9; color:#475569; font-size:0.75rem; padding:2px 8px; border-radius:12px; margin-right:6px;">رنگ: ${escapeHtml(item.selected_color)}</span>` 
+        : "";
 
       return `
         <div class="cart-item">
@@ -302,11 +323,11 @@ function renderCartItems() {
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <div class="cart-item-controls">
-              <button class="qty-btn" onclick="changeQuantity(${item.id}, '${escapeHtml(item.selected_color || '')}', -1)" aria-label="کم کردن">−</button>
+              <button class="qty-btn" onclick='changeQuantity(${item.id}, ${JSON.stringify(item.selected_color || "")}, -1)' aria-label="کم کردن">−</button>
               <span class="qty-number">${item.quantity}</span>
-              <button class="qty-btn" onclick="changeQuantity(${item.id}, '${escapeHtml(item.selected_color || '')}', 1)" aria-label="زیاد کردن">+</button>
+              <button class="qty-btn" onclick='changeQuantity(${item.id}, ${JSON.stringify(item.selected_color || "")}, 1)' aria-label="زیاد کردن">+</button>
             </div>
-            <button class="cart-remove-btn" onclick="removeFromCart(${item.id}, '${escapeHtml(item.selected_color || '')}')" aria-label="حذف" title="حذف">✕</button>
+            <button class="cart-remove-btn" onclick='removeFromCart(${item.id}, ${JSON.stringify(item.selected_color || "")})' aria-label="حذف" title="حذف">✕</button>
           </div>
         </div>
       `;
@@ -314,16 +335,6 @@ function renderCartItems() {
     .join("");
 
   if (cartTotalPrice) cartTotalPrice.textContent = formatToman(total);
-}
-
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 // --------------------
@@ -353,7 +364,7 @@ if (cartModal) {
   });
 }
 
-// تب‌های دسته‌بندی
+// تغییر دسته‌بندی با کلیک روی تب‌ها
 if (tabsContainer) {
   tabsContainer.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab");
@@ -417,7 +428,7 @@ if (checkoutForm) {
         throw new Error(result.error || "ثبت سفارش ناموفق بود.");
       }
 
-      // خالی کردن سبد
+      // خالی کردن سبد خرید محلی
       cart = [];
       localStorage.setItem("store_cart", JSON.stringify(cart));
       updateCartBadge();
@@ -425,8 +436,7 @@ if (checkoutForm) {
       checkoutForm.reset();
       checkoutForm.hidden = true;
       if (checkoutBtn) checkoutBtn.style.display = "none";
-
-      if (cartTotalPrice) cartTotalPrice.textContent = formatToman(result.total_price);
+      if (cartTotalPrice) cartTotalPrice.textContent = "۰ تومان";
 
       if (cartItemsList) {
         cartItemsList.innerHTML = `
@@ -434,7 +444,7 @@ if (checkoutForm) {
             <div style="font-size: 42px; color: #10b981; line-height: 1; margin-bottom: 10px;">✓</div>
             <h3 style="color:#1e293b; margin-bottom: 6px; font-size: 1.1rem;">سفارش شما با موفقیت ثبت شد</h3>
             <p style="color:#475569; font-size: 0.95rem; margin-bottom: 6px;">
-              شماره پیگیری: <strong style="color:#2563eb;">#${result.order_id}</strong>
+              شماره پیگیری: <strong style="color:#2563eb;">#${escapeHtml(result.order_id)}</strong>
             </p>
             <p style="color:#94a3b8; font-size: 0.82rem;">همکاران ما به زودی جهت ارسال با شما تماس می‌گیرند.</p>
           </div>
@@ -489,19 +499,13 @@ document.querySelectorAll(".drawer-item").forEach((item) => {
     item.classList.add("active");
 
     const cat = item.getAttribute("data-category");
-    const matchingTab = document.querySelector(`.tab[data-category="${cat}"]`);
-    if (matchingTab) {
-      matchingTab.click();
-    } else if (cat === "all") {
-      const allTab = document.querySelector(".tab:first-child");
-      if (allTab) allTab.click();
-    }
-
+    renderCategory(cat);
     closeDrawer();
   });
 });
 
-// شروع اولیه
+// --------------------
+// اجرای اولیه
+// --------------------
 updateCartBadge();
-renderCartItems();
 loadProducts();
